@@ -34,3 +34,7 @@ captures/
 
 # Working database files (bundled version is in app/src/main/assets/)
 /card_hashes.db
+
+# Card images (bundled from website, don't check in)
+app/src/main/assets/thumbnails/
+app/src/main/assets/fullsize/

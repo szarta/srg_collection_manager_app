@@ -49,76 +49,90 @@ Camera scanning is unreliable due to mismatch between phone photos and high-qual
 
 ---
 
-## Phase 2: Integrate with get-diced.com 🎲
+## Phase 2: Integrate with get-diced.com 🎲 ✅ COMPLETED
 
-### Goals
-- Pull card database from get-diced.com
-- Display card images from get-diced.com
-- Implement fast, rich card search
-- Cache data for offline use
+### Goals ✅
+- ✅ Pull card database from get-diced.com
+- ✅ Implement fast, rich card search with filters
+- ✅ Cache data for offline use
+- ✅ Folder-based collection system
+- 🚧 Display card images from get-diced.com (next)
 
-### Research First
-1. **Inspect SRG codebase for get-diced.com**
-   - API endpoints
-   - Database schema
-   - Image storage structure
-   - Search implementation
+### Research ✅
+1. **Inspected get-diced.com codebase**
+   - ✅ Documented API endpoints (search, filters, shared lists)
+   - ✅ Documented database schema (7 card types)
+   - ✅ Documented image storage structure (WebP thumbnails and full-size)
+   - ✅ Documented search implementation with filters
 
 ### Implementation Tasks
 
-#### 2.1: API Integration
-1. **Create API client** (`app/src/main/kotlin/com/srg/inventory/api/`)
-   - `GetDicedApiService.kt` (Retrofit interface)
-   - `GetDicedRepository.kt` (data layer)
-   - Define data models for API responses
+#### 2.1: API Integration ✅ COMPLETED
+1. **Created API client** (`app/src/main/kotlin/com/srg/inventory/api/`)
+   - ✅ `GetDicedApi.kt` - Retrofit interface with all endpoints
+   - ✅ `RetrofitClient.kt` - Singleton API client
+   - ✅ `ApiModels.kt` - Request/response models
+   - ✅ `CardMapper.kt` - DTO to entity mapper
+   - ✅ `CardSyncRepository.kt` - Batch sync operations
 
-2. **API Endpoints to Implement**
-   - `GET /api/cards` - Fetch all cards
-   - `GET /api/cards/search?q={query}` - Search cards
-   - `GET /api/cards/{id}` - Get card details
-   - `GET /api/images/{path}` - Get card images
-   - (Document actual endpoints after inspecting codebase)
+2. **API Endpoints Implemented**
+   - ✅ `GET /cards` - Fetch cards with pagination and filters
+   - ✅ `GET /cards/{uuid}` - Get card by UUID
+   - ✅ `GET /cards/slug/{slug}` - Get card by slug
+   - ✅ `POST /cards/by-uuids` - Batch fetch by UUIDs
+   - ✅ `POST /api/shared-lists` - Create shareable list
+   - ✅ `GET /api/shared-lists/{id}` - Get shared list
+   - ✅ Image endpoints documented (thumbnails and full-size)
 
-3. **Add Dependencies** (`app/build.gradle.kts`)
-   - Retrofit for API calls
-   - Coil for image loading
-   - Moshi/Gson for JSON parsing
+3. **Dependencies Added** ✅
+   - ✅ Retrofit 2.9.0 for API calls
+   - ✅ Gson 2.10.1 for JSON parsing
+   - ✅ OkHttp logging interceptor
+   - 🔜 Coil for image loading (next)
 
-#### 2.2: Local Database
-1. **Create Card Entity** (`app/src/main/kotlin/com/srg/inventory/data/`)
-   - `Card.kt` - Full card data from API
-   - Include: id, name, type, text, image_url, set, rarity, linked_cards, etc.
+#### 2.2: Local Database ✅ COMPLETED
+1. **Created Database Entities** (`app/src/main/kotlin/com/srg/inventory/data/`)
+   - ✅ `Card.kt` - Full card data from API (supports all 7 card types)
+   - ✅ `Folder.kt` - Collection folders (Owned, Wanted, Trade, + custom)
+   - ✅ `FolderCard.kt` - Many-to-many junction table
+   - ✅ Includes: UUID, name, type, rules, stats, tags, etc.
 
-2. **Update Database**
-   - `CardDao.kt` - CRUD operations
-   - `AppDatabase.kt` - Include Card table
-   - Migration strategy from old schema
+2. **Updated Database** ✅
+   - ✅ `CardDao.kt` - CRUD and search operations
+   - ✅ `FolderDao.kt` - Folder management
+   - ✅ `FolderCardDao.kt` - Junction table operations
+   - ✅ `UserCardDatabase.kt` - Upgraded to v2 with migration
+   - ✅ Automatic migration from v1 preserving user data
 
-3. **Caching Strategy**
-   - Download card database on first launch
-   - Periodic sync (daily/weekly)
-   - Offline-first with cache
+3. **Caching Strategy** ✅
+   - ✅ Manual sync button in UI
+   - ✅ Batch download with progress tracking
+   - ✅ Offline-first architecture
+   - ✅ Last sync timestamp display
 
-#### 2.3: Enhanced Search UI
-1. **Redesign Search Screen** (`app/src/main/kotlin/com/srg/inventory/ui/`)
-   - Replace `ManualAddScreen.kt` with `CardSearchScreen.kt`
-   - Real-time search with debouncing
-   - Filter by: type, set, rarity, color
-   - Sort by: name, set, rarity
+#### 2.3: Enhanced Search UI ✅ COMPLETED
+1. **Redesigned Collection System** (`app/src/main/kotlin/com/srg/inventory/ui/`)
+   - ✅ `FoldersScreen.kt` - Folder list with sync button
+   - ✅ `FolderDetailScreen.kt` - Cards in folder
+   - ✅ `AddCardToFolderScreen.kt` - Search with advanced filters
+   - ✅ `CollectionViewModel.kt` - State management
+   - ✅ `Navigation.kt` - Type-safe navigation
 
-2. **Card Detail View**
-   - `CardDetailScreen.kt` - Full card view
-   - Display high-res image from get-diced.com
-   - Show all card attributes
-   - Show linked cards (clickable)
-   - Actions: Add to Collection, Add to Deck
+2. **Advanced Filters Implemented** ✅
+   - ✅ Card Type filter (7 types)
+   - ✅ Attack Type filter (Strike, Grapple, Submission)
+   - ✅ Play Order filter (Lead, Followup, Finish)
+   - ✅ Division filter (for competitors)
+   - ✅ Real-time search across name and rules text
+   - ✅ Type-specific filters shown dynamically
 
-3. **Image Loading**
-   - Use Coil to load images from get-diced.com
-   - Cache images locally
-   - Placeholder/error images
+3. **Image Loading** 🚧 NEXT
+   - 🔜 Bundle images in app resources OR
+   - 🔜 Use Coil to load from get-diced.com
+   - 🔜 Cache images locally
+   - 🔜 Placeholder/error images
 
-**Estimated Time**: 3-4 hours
+**Actual Time**: ~6 hours (more comprehensive than planned)
 
 ---
 
@@ -228,33 +242,65 @@ Camera scanning is unreliable due to mismatch between phone photos and high-qual
 
 ---
 
-## Implementation Order (Tomorrow's Session)
+## Implementation Status
 
-### Session 1: Cleanup (Start Here)
+### ✅ Session 1: Cleanup (COMPLETED)
 1. ✅ Remove camera scanning UI and code
 2. ✅ Remove OpenCV and matching utilities
 3. ✅ Clean up dependencies and unused files
 4. ✅ Test app still runs with simplified architecture
 
-### Session 2: Get-Diced Integration
-1. 🔍 Inspect get-diced.com codebase
-2. 📝 Document API endpoints and data models
-3. 🔌 Implement API client and repository
-4. 💾 Update database schema for full card data
-5. 🖼️ Implement image loading
+### ✅ Session 2: Get-Diced Integration (COMPLETED)
+1. ✅ Inspect get-diced.com codebase and document APIs
+2. ✅ Document API endpoints and data models
+3. ✅ Implement API client (Retrofit + Gson)
+4. ✅ Create CardSyncRepository for batch sync operations
+5. ✅ Update database schema to v2 (Folder-based collections)
+6. ✅ Implement database migration from v1 to v2
+7. ✅ Manual sync with progress tracking
+8. 🚧 Implement image loading (next step)
 
-### Session 3: Enhanced Search
-1. 🔍 Build new search UI
-2. 🎯 Add filters and sorting
-3. 📄 Create card detail view
-4. 🔗 Implement linked card navigation
+### ✅ Session 3: Enhanced Search (COMPLETED)
+1. ✅ Build folder-based collection UI
+2. ✅ Add type-specific filters (card type, atk type, play order, division)
+3. ✅ Create folder list, folder detail, and add card screens
+4. ✅ Implement navigation between screens
+5. ✅ Support multi-folder cards with independent quantities
 
-### Session 4: Deckbuilding
-1. 💾 Create deck data layer
+### ✅ Session 4: Navigation & Image Infrastructure (COMPLETED - Nov 19, 2025)
+1. ✅ Restructure navigation to 4-tab bottom nav (Collection | Decks | Card Search | Settings)
+2. ✅ Create SettingsScreen with sync functionality
+3. ✅ Create CardSearchScreen for standalone card browsing
+4. ✅ Create DecksScreen placeholder
+5. ✅ Update app icon to match get-diced.com branding
+6. ✅ Add Coil image loading library
+7. ✅ Create ImageUtils helper for image loading
+8. ✅ Bundle 3,481 thumbnail images (34MB) with app
+9. ✅ Create bundle_images.sh script with IMAGE_SOURCE_DIR support
+10. ✅ Show deck card number (#) prominently for MainDeck cards
+
+### 🚧 Session 5: Image Integration (IN PROGRESS)
+1. 🚧 Integrate images into card list UI components
+2. 🚧 Add images to card detail dialogs
+3. 🔜 Implement server image sync for missing images
+4. 🔜 Add image cache management
+
+### 🔜 Session 6: Folder Enhancements (NEXT)
+1. 🔜 Add sorting options for cards in folders (name, type, deck #, quantity, date)
+2. 🔜 Add search within collection folders
+3. 🔜 Implement bulk operations (add multiple cards)
+
+### 🔜 Session 7: Deckbuilding
+1. 💾 Create deck data layer (Deck, DeckCard entities)
 2. 📝 Build deck list screen
-3. ✏️ Build deck editor
-4. 🔗 Implement linked card suggestions
-5. 📤 Export/import via API
+3. ✏️ Build deck editor with search
+4. 🔗 Implement linked card suggestions (related_cards, related_finishes)
+5. 📤 Export/import via shared lists API
+
+### 🔜 Session 8: Polish & Optimization
+1. 🖼️ Full image integration and optimization
+2. 🎨 UI/UX polish and animations
+3. ⚡ Performance optimizations
 
 ---
 
@@ -326,42 +372,46 @@ After implementation:
 
 ---
 
-## File Structure After Pivot
+## Current File Structure (Updated)
 
 ```
 app/src/main/kotlin/com/srg/inventory/
-├── api/
-│   ├── GetDicedApiService.kt
-│   ├── GetDicedRepository.kt
-│   └── models/
-│       ├── CardResponse.kt
-│       └── DeckResponse.kt
-├── data/
-│   ├── Card.kt
-│   ├── CardDao.kt
-│   ├── Deck.kt
-│   ├── DeckDao.kt
-│   ├── DeckCard.kt
-│   ├── DeckCardDao.kt
-│   ├── UserCard.kt (keep for collection)
-│   └── AppDatabase.kt
-├── ui/
-│   ├── MainScreen.kt (updated navigation)
-│   ├── search/
-│   │   ├── CardSearchScreen.kt
-│   │   ├── CardDetailScreen.kt
-│   │   └── CardSearchViewModel.kt
-│   ├── collection/
-│   │   └── CollectionScreen.kt (keep)
-│   ├── deck/
-│   │   ├── DeckListScreen.kt
-│   │   ├── DeckEditorScreen.kt
-│   │   └── DeckViewModel.kt
-│   └── components/
-│       ├── CardGridItem.kt
-│       └── CardListItem.kt
-└── utils/
-    └── ImageLoader.kt (Coil wrapper)
+├── api/                          ✅ Implemented
+│   ├── GetDicedApi.kt           ✅ Retrofit service interface
+│   ├── RetrofitClient.kt        ✅ API client singleton
+│   ├── ApiModels.kt             ✅ Request/response models
+│   ├── CardMapper.kt            ✅ DTO to entity mapper
+│   └── CardSyncRepository.kt    ✅ Batch sync operations
+├── data/                         ✅ Implemented
+│   ├── Card.kt                  ✅ Card entity (from API)
+│   ├── CardDao.kt               ✅ Card DAO
+│   ├── Folder.kt                ✅ Folder entity
+│   ├── FolderDao.kt             ✅ Folder DAO
+│   ├── FolderCard.kt            ✅ Junction table
+│   ├── FolderCardDao.kt         ✅ Junction DAO
+│   ├── CollectionRepository.kt  ✅ Collection operations
+│   ├── UserCard.kt              ✅ Legacy (migrated)
+│   ├── UserCardDao.kt           ✅ Legacy DAO
+│   ├── CardRepository.kt        ✅ Legacy repository
+│   └── UserCardDatabase.kt      ✅ Room DB v2
+├── ui/                           ✅ Implemented
+│   ├── CollectionViewModel.kt   ✅ State management
+│   ├── Navigation.kt            ✅ Navigation routes
+│   ├── MainScreen.kt            ✅ Updated for folders
+│   ├── FoldersScreen.kt         ✅ Folder list
+│   ├── FolderDetailScreen.kt    ✅ Cards in folder
+│   ├── AddCardToFolderScreen.kt ✅ Search with filters
+│   ├── ManualAddScreen.kt       (legacy, unused)
+│   ├── CollectionScreen.kt      (legacy, unused)
+│   ├── CardViewModel.kt         (legacy, unused)
+│   └── theme/                   ✅ Material 3 theme
+├── deck/                         🔜 Next phase
+│   ├── Deck.kt                  🔜 Deck entity
+│   ├── DeckDao.kt               🔜 Deck DAO
+│   ├── DeckCard.kt              🔜 Junction table
+│   ├── DeckCardDao.kt           🔜 Junction DAO
+│   └── DeckRepository.kt        🔜 Deck operations
+└── MainActivity.kt               ✅ App entry point
 ```
 
 ---
@@ -375,6 +425,94 @@ app/src/main/kotlin/com/srg/inventory/
 
 ---
 
-## Ready to Start Tomorrow! 🚀
+## Current Status 🚀
 
-Begin with **Phase 1: Remove Scanning Capability** to clean up the codebase, then inspect the get-diced.com codebase to understand the API structure before implementing integration.
+### Completed ✅
+- **Phase 1**: Camera scanning removal and cleanup
+- **Phase 2**: get-diced.com API integration with folder-based collections
+- **Enhanced Search**: Type-specific filters and real-time search
+- **Database Migration**: v1 to v2 with data preservation
+- **Offline-First**: Manual sync with progress tracking
+- **Bundled Database**: ✨ NEW - App ships with 3,922 cards pre-loaded (1.6MB database in assets)
+
+### Latest Session: Navigation Restructure & Image Infrastructure (Nov 19, 2025 - Part 2)
+#### What Was Completed
+1. **4-Tab Bottom Navigation** - Created clean tab structure
+   - Collection tab (FoldersScreen)
+   - Decks tab (DecksScreen - placeholder)
+   - Card Search tab (CardSearchScreen - standalone browsing)
+   - Settings tab (SettingsScreen - sync & config)
+   - Updated MainScreen.kt with NavigationBar
+   - Bottom nav hides on detail screens
+
+2. **Settings Screen** - Centralized configuration
+   - Database statistics (card count, last sync time)
+   - Manual sync button with progress
+   - About section
+   - Info card explaining bundled database strategy
+
+3. **Card Search Screen** - Standalone browsing
+   - Full search and filter capabilities
+   - View card details before adding to collection
+   - "Add to Collection" button (folder selector - future)
+   - Same advanced filters as folder add screen
+
+4. **Image Loading Infrastructure**
+   - Added Coil 2.5.0 for async image loading
+   - Created ImageUtils.kt helper
+   - Bundled 3,481 thumbnail images (34MB)
+   - Created bundle_images.sh script
+   - Image loading strategy: Bundled → Cached → Server → Placeholder
+
+5. **UI Improvements**
+   - Deck card number (#) displayed prominently for MainDeck cards
+   - App icon updated to match get-diced.com (dice icon)
+   - Removed sync button from FoldersScreen
+
+6. **Database Schema Fix**
+   - Fixed schema mismatch in bundled database
+   - Removed DEFAULT clauses (Room doesn't expect them)
+   - Removed indexes (Room creates automatically)
+   - Added is_custom column to user_cards table
+
+#### Image Status
+- ✅ 3,481 thumbnails bundled (34MB, WebP format)
+- ✅ Coil library integrated
+- ✅ ImageUtils helper created
+- ✅ bundle_images.sh script with IMAGE_SOURCE_DIR support
+- 🚧 UI integration pending
+- 🔜 Server image sync
+
+### Next Steps 🔜
+**Immediate (Next Session):**
+1. **Integrate Images into UI** - Add AsyncImage to card lists and dialogs
+2. **Image Sync from Server** - Background task to download missing images
+3. **Folder Sorting** - Add sort options (name, type, deck #, quantity, date)
+4. **Folder Search** - Search within specific collection folders
+
+**High Priority:**
+5. **Versioned Database Bundles** - Server-side versioning for DB + images bundles
+   - Host versioned bundles on get-diced.com
+   - App checks bundle version and downloads updates
+   - Supports incremental updates (~10 new cards/month)
+
+**Future:**
+6. **Deckbuilding**: Create deck data layer and UI
+7. **Shared Lists**: Import/export via get-diced.com API
+8. **UI Polish**: Animations, transitions, performance
+
+### Known Issues 🐛
+- Legacy UI files (ManualAddScreen, CollectionScreen, CardViewModel) can be deleted once thoroughly tested
+- Images not yet integrated into UI (infrastructure ready, AsyncImage components needed)
+
+### Architecture Highlights 🏗️
+- **Folder-based collections** allow same card in multiple folders with independent quantities
+- **7 card types supported** with type-specific metadata and filters
+- **Many-to-many relationship** between folders and cards via junction table
+- **Offline-first** with bundled database (~3,922 cards) + images (3,481 thumbnails, 34MB)
+- **Type-safe navigation** using Compose Navigation with 4-tab bottom nav
+- **Reactive UI** using Flow and StateFlow
+- **Pre-populated database** using Room's `.createFromAsset()` feature
+- **Living database** - New cards added regularly (~10/month), sync keeps app current
+- **Image loading** - Coil library with bundled assets → cached downloads → server fallback
+- **Standalone card browsing** - View and search cards separately from adding to collection

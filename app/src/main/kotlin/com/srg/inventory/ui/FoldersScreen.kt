@@ -22,37 +22,17 @@ import com.srg.inventory.data.Folder
 fun FoldersScreen(
     viewModel: CollectionViewModel,
     onFolderClick: (String) -> Unit,
-    onSyncClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
     val foldersWithCounts by viewModel.foldersWithCounts.collectAsState()
-    val isSyncing by viewModel.isSyncing.collectAsState()
-    val lastSyncTime by viewModel.lastSyncTime.collectAsState()
     val cardCount by viewModel.cardCount.collectAsState()
-    val errorMessage by viewModel.errorMessage.collectAsState()
 
     var showCreateFolderDialog by remember { mutableStateOf(false) }
 
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("Collection") },
-                actions = {
-                    // Sync button
-                    IconButton(
-                        onClick = onSyncClick,
-                        enabled = !isSyncing
-                    ) {
-                        if (isSyncing) {
-                            CircularProgressIndicator(
-                                modifier = Modifier.size(24.dp),
-                                strokeWidth = 2.dp
-                            )
-                        } else {
-                            Icon(Icons.Default.Refresh, contentDescription = "Sync cards")
-                        }
-                    }
-                }
+                title = { Text("Collection") }
             )
         },
         floatingActionButton = {
@@ -68,24 +48,14 @@ fun FoldersScreen(
                 .fillMaxSize()
                 .padding(paddingValues)
         ) {
-            // Sync status card
-            if (cardCount > 0 || isSyncing) {
-                SyncStatusCard(
-                    cardCount = cardCount,
-                    lastSyncTime = lastSyncTime,
-                    isSyncing = isSyncing,
-                    modifier = Modifier.padding(16.dp)
-                )
-            }
-
-            // Error message
-            errorMessage?.let { error ->
+            // Card count indicator
+            if (cardCount > 0) {
                 Card(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(horizontal = 16.dp, vertical = 8.dp),
+                        .padding(16.dp),
                     colors = CardDefaults.cardColors(
-                        containerColor = MaterialTheme.colorScheme.errorContainer
+                        containerColor = MaterialTheme.colorScheme.surfaceVariant
                     )
                 ) {
                     Row(
@@ -96,20 +66,21 @@ fun FoldersScreen(
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         Text(
-                            text = error,
-                            style = MaterialTheme.typography.bodyMedium,
-                            color = MaterialTheme.colorScheme.onErrorContainer,
-                            modifier = Modifier.weight(1f)
+                            text = "$cardCount cards in database",
+                            style = MaterialTheme.typography.bodyLarge,
+                            fontWeight = FontWeight.Bold
                         )
-                        IconButton(onClick = { viewModel.clearError() }) {
-                            Icon(Icons.Default.Close, contentDescription = "Dismiss")
-                        }
+                        Icon(
+                            Icons.Default.CheckCircle,
+                            contentDescription = null,
+                            tint = MaterialTheme.colorScheme.primary
+                        )
                     }
                 }
             }
 
             // Folders list
-            if (foldersWithCounts.isEmpty() && !isSyncing) {
+            if (foldersWithCounts.isEmpty()) {
                 EmptyFoldersState(
                     onCreateFolder = { showCreateFolderDialog = true },
                     modifier = Modifier.fillMaxSize()
@@ -144,53 +115,6 @@ fun FoldersScreen(
                 showCreateFolderDialog = false
             }
         )
-    }
-}
-
-@Composable
-fun SyncStatusCard(
-    cardCount: Int,
-    lastSyncTime: String,
-    isSyncing: Boolean,
-    modifier: Modifier = Modifier
-) {
-    Card(
-        modifier = modifier.fillMaxWidth(),
-        colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.surfaceVariant
-        )
-    ) {
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(16.dp),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Column {
-                Text(
-                    text = "$cardCount cards in database",
-                    style = MaterialTheme.typography.bodyLarge,
-                    fontWeight = FontWeight.Bold
-                )
-                Text(
-                    text = if (isSyncing) "Syncing..." else "Last sync: $lastSyncTime",
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-            }
-            if (isSyncing) {
-                CircularProgressIndicator(
-                    modifier = Modifier.size(32.dp)
-                )
-            } else {
-                Icon(
-                    Icons.Default.CheckCircle,
-                    contentDescription = null,
-                    tint = MaterialTheme.colorScheme.primary
-                )
-            }
-        }
     }
 }
 

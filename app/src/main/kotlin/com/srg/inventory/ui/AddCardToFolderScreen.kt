@@ -313,6 +313,15 @@ fun SearchResultCard(
                     }
 
                     if (card.isMainDeck) {
+                        // Show deck card number first (most important for MainDeck cards)
+                        card.deckCardNumber?.let {
+                            Text(
+                                text = "• #$it",
+                                style = MaterialTheme.typography.labelSmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                fontWeight = FontWeight.Bold
+                            )
+                        }
                         card.atkType?.let {
                             Text(
                                 text = "• $it",

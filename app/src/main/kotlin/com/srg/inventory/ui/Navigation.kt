@@ -13,7 +13,13 @@ import androidx.navigation.navArgument
  * Navigation routes for the app
  */
 sealed class Screen(val route: String) {
-    object Folders : Screen("folders")
+    // Top-level tabs
+    object Collection : Screen("collection")
+    object Decks : Screen("decks")
+    object CardSearch : Screen("card_search")
+    object Settings : Screen("settings")
+
+    // Collection sub-screens
     object FolderDetail : Screen("folder/{folderId}") {
         fun createRoute(folderId: String) = "folder/$folderId"
     }
@@ -33,18 +39,15 @@ fun CollectionNavHost(
 ) {
     NavHost(
         navController = navController,
-        startDestination = Screen.Folders.route,
+        startDestination = Screen.Collection.route,
         modifier = modifier
     ) {
-        // Folders list
-        composable(Screen.Folders.route) {
+        // Collection screen (folders list)
+        composable(Screen.Collection.route) {
             FoldersScreen(
                 viewModel = viewModel,
                 onFolderClick = { folderId ->
                     navController.navigate(Screen.FolderDetail.createRoute(folderId))
-                },
-                onSyncClick = {
-                    viewModel.syncCardsFromWebsite()
                 }
             )
         }
@@ -75,6 +78,28 @@ fun CollectionNavHost(
                 folderId = folderId,
                 viewModel = viewModel,
                 onBackClick = { navController.popBackStack() }
+            )
+        }
+
+        // Decks screen (placeholder)
+        composable(Screen.Decks.route) {
+            DecksScreen()
+        }
+
+        // Card Search screen
+        composable(Screen.CardSearch.route) {
+            CardSearchScreen(
+                viewModel = viewModel,
+                onAddToCollection = { cardUuid ->
+                    // TODO: Show folder selector dialog
+                }
+            )
+        }
+
+        // Settings screen
+        composable(Screen.Settings.route) {
+            SettingsScreen(
+                viewModel = viewModel
             )
         }
     }

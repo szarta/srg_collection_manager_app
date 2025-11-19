@@ -6,24 +6,30 @@ Android app for managing your SRG (Super Ring of Glory) wrestling card collectio
 
 ### ✅ Implemented
 - **Bundled Database** - ✨ App ships with 3,922 cards pre-loaded (ready to use immediately!)
+- **Bundled Images** - ✨ 3,481 card thumbnail images (34MB) bundled with app for offline use
+- **4-Tab Navigation** - Clean bottom nav: Collection | Decks | Card Search | Settings
 - **Folder-Based Collection Management** - Organize cards in custom folders (Owned, Wanted, Trade, + custom)
-- **Card Database Sync** - Sync from get-diced.com to get latest cards and updates
+- **Card Database Sync** - Sync from get-diced.com to get latest cards and updates (Settings screen)
 - **Advanced Card Search** - Search with type-specific filters (attack type, play order, division, etc.)
+- **Standalone Card Browse** - Browse and view any card before adding to collection
 - **Multi-Folder Support** - Same card can exist in multiple folders with independent quantities
-- **Offline-First** - Works offline with bundled database, sync for latest updates
+- **Offline-First** - Works offline with bundled database + images, sync for latest updates
 - **7 Card Types Supported** - MainDeck, SingleCompetitor, TornadoCompetitor, TrioCompetitor, Entrance, Spectacle, CrowdMeter
+- **Image Loading** - Coil library with bundled assets → cached downloads → server fallback
 
 **Note:** New cards are released regularly (~10/month) and the database is actively being updated. The bundled database provides a great starting point, but syncing is recommended to get the latest cards and updates.
 
 ### 🚧 In Progress
-- **Navigation Restructure** - Moving to 4-tab bottom nav (Collection/Decks/Card Search/Settings)
+- **Image Integration** - Integrating card images into UI components
+- **Image Sync** - Background download of new/missing images from server
 
 ### 🔜 Coming Soon
 - **Versioned Database Bundles** - Download latest versioned DB + images bundle from get-diced.com
 - **Deckbuilding** - Build and manage decks with smart suggestions
 - **Deck Export/Import** - Share decks via get-diced.com API
 - **Shared Lists** - Import collection/deck links from get-diced.com
-- **Card Images** - Bundle or download card images
+- **Folder Sorting** - Sort cards within folders (by name, type, deck #, etc.)
+- **Folder Search** - Search within specific collection folders
 
 ## Tech Stack
 
@@ -33,15 +39,16 @@ Android app for managing your SRG (Super Ring of Glory) wrestling card collectio
 - **Coroutines & Flow** - Reactive async operations
 - **Retrofit** - API integration with get-diced.com
 - **Gson** - JSON parsing
+- **Coil** - Async image loading with caching
 - **Navigation Compose** - Type-safe navigation
 
 ## Integration with get-diced.com
 
 This app integrates with [get-diced.com](https://get-diced.com) to:
-- ✅ Sync comprehensive card database (~300-500 cards)
+- ✅ Sync comprehensive card database (~3,922 cards, growing monthly)
 - ✅ Access all 7 card types with full metadata
 - ✅ Search and filter with API-backed queries
-- 🔜 Load high-quality card images (WebP format)
+- ✅ Load high-quality card images (WebP format, bundled + on-demand)
 - 🔜 Export/import decks via shared lists API
 - 🔜 Share collections and decks with unique URLs
 
@@ -70,14 +77,19 @@ app/src/main/kotlin/com/srg/inventory/
 ├── ui/                          # UI components and screens
 │   ├── CollectionViewModel.kt   # ViewModel for folder-based collections
 │   ├── Navigation.kt            # Navigation routes and NavHost
-│   ├── MainScreen.kt            # App entry point (updated)
-│   ├── FoldersScreen.kt         # Folder list screen
+│   ├── MainScreen.kt            # 4-tab bottom navigation
+│   ├── FoldersScreen.kt         # Collection tab - folder list
 │   ├── FolderDetailScreen.kt    # Cards in folder screen
 │   ├── AddCardToFolderScreen.kt # Card search with filters
+│   ├── CardSearchScreen.kt      # Card Search tab - standalone browse
+│   ├── DecksScreen.kt           # Decks tab - placeholder
+│   ├── SettingsScreen.kt        # Settings tab - sync & config
 │   ├── ManualAddScreen.kt       # Legacy search screen (unused)
 │   ├── CollectionScreen.kt      # Legacy collection screen (unused)
 │   ├── CardViewModel.kt         # Legacy ViewModel (unused)
 │   └── theme/                   # Material 3 theme
+├── utils/                       # Utility functions
+│   └── ImageUtils.kt            # Image loading helpers
 └── MainActivity.kt              # App entry point
 ```
 
@@ -135,12 +147,17 @@ CREATE TABLE folder_cards (
    - JDK 21
    - Android SDK 34
 
-2. **Build**:
+2. **Bundle Images** (optional, images already bundled):
+   ```bash
+   IMAGE_SOURCE_DIR=~/data/srg_card_search_website/backend/app/images ./bundle_images.sh
+   ```
+
+3. **Build**:
    ```bash
    ./gradlew assembleDebug
    ```
 
-3. **Run**:
+4. **Run**:
    ```bash
    ./gradlew installDebug
    ```
@@ -149,8 +166,9 @@ CREATE TABLE folder_cards (
 
 ### 1. First Time Setup
    - Launch the app
-   - **3,922 cards are pre-loaded and ready to use immediately!**
-   - **Recommended:** Tap the **Refresh** button (top right) to sync latest cards from get-diced.com
+   - **3,922 cards + 3,481 images are pre-loaded and ready to use immediately!**
+   - Navigate to **Settings** tab (bottom right)
+   - **Recommended:** Tap **Sync from get-diced.com** to get latest cards
    - New cards are released regularly (~10/month), so periodic syncing keeps your database current
 
 ### 2. Organize Your Collection with Folders
@@ -194,6 +212,9 @@ See [PIVOT_PLAN.md](PIVOT_PLAN.md) for the full implementation plan.
 - ✅ Database migration from v1 to v2
 - ✅ Manual sync with progress tracking
 - ✅ Bundled database with 3,922 cards (offline-first)
+- ✅ 4-tab bottom navigation (Collection | Decks | Card Search | Settings)
+- ✅ Image loading infrastructure with Coil
+- ✅ Bundled card images (3,481 thumbnails, 34MB)
 
 ### Phase 3: 🔜 Deckbuilding (Next)
 - Create/edit/delete decks
