@@ -76,6 +76,8 @@ class CollectionRepository(
 
     suspend fun getCardByUuid(uuid: String): Card? = cardDao.getCardByUuid(uuid)
 
+    suspend fun getCardByName(name: String): Card? = cardDao.getCardByName(name)
+
     fun searchCards(query: String): Flow<List<Card>> = cardDao.searchCards(query)
 
     fun getCardsByType(cardType: String): Flow<List<Card>> = cardDao.getCardsByType(cardType)

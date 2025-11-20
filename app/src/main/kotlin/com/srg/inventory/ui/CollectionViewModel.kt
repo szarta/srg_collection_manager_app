@@ -50,16 +50,58 @@ class CollectionViewModel(application: Application) : AndroidViewModel(applicati
     private val _currentFolderId = MutableStateFlow<String?>(null)
     val currentFolderId: StateFlow<String?> = _currentFolderId.asStateFlow()
 
-    // Cards in current folder with quantities
+    // Cards in current folder with quantities (sorted by card type)
     val cardsInCurrentFolder: StateFlow<List<CardWithQuantity>> = _currentFolderId
         .flatMapLatest { folderId ->
             if (folderId != null) {
                 repository.getCardsWithQuantitiesInFolder(folderId)
+                    .map { cards -> sortCardsByType(cards) }
             } else {
                 flowOf(emptyList())
             }
         }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+
+    /**
+     * Sort cards by type in deck order:
+     * 1. EntranceCard (alphabetical)
+     * 2. SingleCompetitorCard (alphabetical)
+     * 3. TornadoCompetitorCard (alphabetical)
+     * 4. TrioCompetitorCard (alphabetical)
+     * 5. MainDeckCard (by deck_card_number, then alphabetical)
+     * 6. SpectacleCard (Valiant alphabetical, Newman alphabetical)
+     * 7. CrowdMeterCard (alphabetical)
+     */
+    private fun sortCardsByType(cards: List<CardWithQuantity>): List<CardWithQuantity> {
+        val typeOrder = mapOf(
+            "EntranceCard" to 1,
+            "SingleCompetitorCard" to 2,
+            "TornadoCompetitorCard" to 3,
+            "TrioCompetitorCard" to 4,
+            "MainDeckCard" to 5,
+            "SpectacleCard" to 6,
+            "CrowdMeterCard" to 7
+        )
+
+        return cards.sortedWith(compareBy(
+            // Primary: sort by card type order
+            { typeOrder[it.card.cardType] ?: 99 },
+            // Secondary: for MainDeckCard, sort by deck card number
+            { if (it.card.cardType == "MainDeckCard") it.card.deckCardNumber ?: Int.MAX_VALUE else 0 },
+            // Tertiary: for SpectacleCard, Valiant before Newman
+            {
+                if (it.card.cardType == "SpectacleCard") {
+                    when {
+                        it.card.name.contains("Valiant", ignoreCase = true) -> 0
+                        it.card.name.contains("Newman", ignoreCase = true) -> 1
+                        else -> 2
+                    }
+                } else 0
+            },
+            // Final: alphabetical by name
+            { it.card.name.lowercase() }
+        ))
+    }
 
     // Search and filter state
     private val _searchQuery = MutableStateFlow("")
@@ -212,6 +254,12 @@ class CollectionViewModel(application: Application) : AndroidViewModel(applicati
                 _errorMessage.value = "Failed to move card: ${e.message}"
             }
         }
+    }
+
+    suspend fun getCardByName(name: String): Card? = repository.getCardByName(name)
+
+    suspend fun addCardToFolderSuspend(folderId: String, cardUuid: String, quantity: Int = 1) {
+        repository.addCardToFolder(folderId, cardUuid, quantity)
     }
 
     // ==================== Search and Filter Operations ====================

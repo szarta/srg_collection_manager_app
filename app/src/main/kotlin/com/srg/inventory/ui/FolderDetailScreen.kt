@@ -1,5 +1,10 @@
 package com.srg.inventory.ui
 
+import android.content.Intent
+import android.net.Uri
+import android.widget.Toast
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -14,10 +19,15 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.core.content.FileProvider
 import coil.compose.AsyncImage
 import com.srg.inventory.data.Card
 import com.srg.inventory.data.CardWithQuantity
 import com.srg.inventory.utils.ImageUtils
+import kotlinx.coroutines.launch
+import java.io.BufferedReader
+import java.io.File
+import java.io.InputStreamReader
 
 /**
  * Screen showing cards within a specific folder
@@ -51,6 +61,25 @@ fun FolderDetailScreen(
         }
     }
 
+    val context = LocalContext.current
+    val coroutineScope = rememberCoroutineScope()
+
+    // File picker for CSV import
+    val csvImportLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.GetContent()
+    ) { uri: Uri? ->
+        uri?.let {
+            coroutineScope.launch {
+                importCsvToFolder(
+                    context = context,
+                    uri = it,
+                    folderId = folderId,
+                    viewModel = viewModel
+                )
+            }
+        }
+    }
+
     Scaffold(
         topBar = {
             TopAppBar(
@@ -66,6 +95,24 @@ fun FolderDetailScreen(
                 navigationIcon = {
                     IconButton(onClick = onBackClick) {
                         Icon(Icons.Default.ArrowBack, contentDescription = "Back")
+                    }
+                },
+                actions = {
+                    // Import from CSV
+                    IconButton(onClick = { csvImportLauncher.launch("text/*") }) {
+                        Icon(Icons.Default.FileUpload, contentDescription = "Import from CSV")
+                    }
+                    // Export to CSV
+                    if (cardsWithQuantities.isNotEmpty()) {
+                        IconButton(onClick = {
+                            exportFolderToCsv(
+                                context = context,
+                                folderName = currentFolder?.name ?: "folder",
+                                cards = cardsWithQuantities
+                            )
+                        }) {
+                            Icon(Icons.Default.FileDownload, contentDescription = "Export to CSV")
+                        }
                     }
                 }
             )
@@ -94,7 +141,7 @@ fun FolderDetailScreen(
                 items(cardsWithQuantities, key = { it.card.dbUuid }) { cardWithQuantity ->
                     CardInFolderItem(
                         cardWithQuantity = cardWithQuantity,
-                        onViewClick = { cardToView = cardWithQuantity },
+                        onClick = { cardToView = cardWithQuantity },
                         onEditQuantityClick = { cardToEditQuantity = cardWithQuantity }
                     )
                 }
@@ -128,14 +175,16 @@ fun FolderDetailScreen(
     }
 }
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun CardInFolderItem(
     cardWithQuantity: CardWithQuantity,
-    onViewClick: () -> Unit,
+    onClick: () -> Unit,
     onEditQuantityClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
     Card(
+        onClick = onClick,
         modifier = modifier.fillMaxWidth(),
         elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
     ) {
@@ -233,14 +282,7 @@ fun CardInFolderItem(
 
             Spacer(modifier = Modifier.width(4.dp))
 
-            // Actions
-            IconButton(onClick = onViewClick) {
-                Icon(
-                    Icons.Default.Search,
-                    contentDescription = "View card details",
-                    tint = MaterialTheme.colorScheme.primary
-                )
-            }
+            // Edit quantity action
             IconButton(onClick = onEditQuantityClick) {
                 Icon(
                     Icons.Default.Edit,
@@ -539,4 +581,173 @@ private fun CompetitorStatItem(label: String, value: Int?) {
             fontWeight = FontWeight.Bold
         )
     }
+}
+
+/**
+ * Export folder contents to CSV and share via Android share sheet
+ */
+private fun exportFolderToCsv(
+    context: android.content.Context,
+    folderName: String,
+    cards: List<CardWithQuantity>
+) {
+    try {
+        // Build CSV content
+        val csvBuilder = StringBuilder()
+        csvBuilder.appendLine("Name,Quantity,Card Type,Deck #,Attack Type,Play Order,Division")
+
+        for (cardWithQty in cards) {
+            val card = cardWithQty.card
+            val name = card.name.replace(",", ";").replace("\"", "'")
+            val quantity = cardWithQty.quantity
+            val cardType = card.cardType.replace("Card", "")
+            val deckNum = card.deckCardNumber?.toString() ?: ""
+            val atkType = card.atkType ?: ""
+            val playOrder = card.playOrder ?: ""
+            val division = card.division ?: ""
+
+            csvBuilder.appendLine("\"$name\",$quantity,$cardType,$deckNum,$atkType,$playOrder,$division")
+        }
+
+        // Write to cache file
+        val fileName = "${folderName.replace(" ", "_")}_export.csv"
+        val file = File(context.cacheDir, fileName)
+        file.writeText(csvBuilder.toString())
+
+        // Share via FileProvider
+        val uri = FileProvider.getUriForFile(
+            context,
+            "${context.packageName}.fileprovider",
+            file
+        )
+
+        val shareIntent = Intent(Intent.ACTION_SEND).apply {
+            type = "text/csv"
+            putExtra(Intent.EXTRA_STREAM, uri)
+            putExtra(Intent.EXTRA_SUBJECT, "$folderName - SRG Collection Export")
+            addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+        }
+
+        context.startActivity(Intent.createChooser(shareIntent, "Export $folderName"))
+
+    } catch (e: Exception) {
+        Toast.makeText(context, "Export failed: ${e.message}", Toast.LENGTH_LONG).show()
+    }
+}
+
+/**
+ * Import cards from CSV file into folder
+ * Supports two formats:
+ * 1. App format: Name,Quantity,Card Type,Deck #,Attack Type,Play Order,Division
+ * 2. Simple format: Name,Quantity (or just Name with default quantity 1)
+ */
+private suspend fun importCsvToFolder(
+    context: android.content.Context,
+    uri: Uri,
+    folderId: String,
+    viewModel: CollectionViewModel
+) {
+    try {
+        val inputStream = context.contentResolver.openInputStream(uri)
+        if (inputStream == null) {
+            Toast.makeText(context, "Could not open file", Toast.LENGTH_SHORT).show()
+            return
+        }
+
+        val reader = BufferedReader(InputStreamReader(inputStream))
+        val lines = reader.readLines()
+        reader.close()
+
+        if (lines.isEmpty()) {
+            Toast.makeText(context, "File is empty", Toast.LENGTH_SHORT).show()
+            return
+        }
+
+        var imported = 0
+        var notFound = 0
+        val notFoundNames = mutableListOf<String>()
+
+        // Check if first line is a header
+        val firstLine = lines.first()
+        val hasHeader = firstLine.contains("name", ignoreCase = true) &&
+                       (firstLine.contains("quantity", ignoreCase = true) ||
+                        firstLine.contains("card_type", ignoreCase = true) ||
+                        firstLine.contains("card type", ignoreCase = true))
+
+        // Find name column index for website format (may not be first column)
+        val headers = if (hasHeader) parseCsvLineParts(firstLine).map { it.trim('"', ' ').lowercase() } else emptyList()
+        val nameColumnIndex = headers.indexOfFirst { it.contains("name") }.takeIf { it >= 0 } ?: 0
+        val quantityColumnIndex = headers.indexOfFirst { it.contains("quantity") }
+
+        val dataLines = if (hasHeader) lines.drop(1) else lines
+
+        for (line in dataLines) {
+            if (line.isBlank()) continue
+
+            val parts = parseCsvLineParts(line)
+            if (parts.isEmpty()) continue
+
+            val cardName = parts.getOrNull(nameColumnIndex)?.trim('"', ' ') ?: continue
+            if (cardName.isBlank()) continue
+
+            val quantity = if (quantityColumnIndex >= 0) {
+                parts.getOrNull(quantityColumnIndex)?.toIntOrNull() ?: 1
+            } else {
+                1
+            }
+
+            val card = viewModel.getCardByName(cardName)
+            if (card != null) {
+                viewModel.addCardToFolderSuspend(folderId, card.dbUuid, quantity)
+                imported++
+            } else {
+                notFound++
+                if (notFoundNames.size < 5) {
+                    notFoundNames.add(cardName)
+                }
+            }
+        }
+
+        val message = buildString {
+            append("Imported $imported card${if (imported != 1) "s" else ""}")
+            if (notFound > 0) {
+                append(", $notFound not found")
+                if (notFoundNames.isNotEmpty()) {
+                    append(": ${notFoundNames.joinToString(", ")}")
+                    if (notFound > notFoundNames.size) {
+                        append("...")
+                    }
+                }
+            }
+        }
+
+        Toast.makeText(context, message, Toast.LENGTH_LONG).show()
+
+    } catch (e: Exception) {
+        Toast.makeText(context, "Import failed: ${e.message}", Toast.LENGTH_LONG).show()
+    }
+}
+
+/**
+ * Parse a CSV line into parts
+ * Handles quoted values and various formats
+ */
+private fun parseCsvLineParts(line: String): List<String> {
+    val parts = mutableListOf<String>()
+    var current = StringBuilder()
+    var inQuotes = false
+
+    for (char in line) {
+        when {
+            char == '"' -> inQuotes = !inQuotes
+            char == ',' && !inQuotes -> {
+                parts.add(current.toString().trim())
+                current = StringBuilder()
+            }
+            else -> current.append(char)
+        }
+    }
+    parts.add(current.toString().trim())
+
+    return parts
 }

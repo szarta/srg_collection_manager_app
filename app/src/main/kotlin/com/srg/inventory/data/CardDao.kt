@@ -15,6 +15,9 @@ interface CardDao {
     @Query("SELECT * FROM cards WHERE db_uuid = :uuid")
     suspend fun getCardByUuid(uuid: String): Card?
 
+    @Query("SELECT * FROM cards WHERE name = :name COLLATE NOCASE LIMIT 1")
+    suspend fun getCardByName(name: String): Card?
+
     @Query("SELECT * FROM cards WHERE name LIKE '%' || :searchQuery || '%' COLLATE NOCASE ORDER BY name LIMIT 50")
     fun searchCards(searchQuery: String): Flow<List<Card>>
 
