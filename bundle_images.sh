@@ -1,11 +1,16 @@
 #!/bin/bash
 # Bundle mobile-optimized card images with the app
 
-IMAGE_SOURCE_DIR="${IMAGE_SOURCE_DIR:-$HOME/data/srg_card_search_website/backend/app/images}"
+BACKEND_DIR="${BACKEND_DIR:-$HOME/data/srg_card_search_website/backend/app}"
+IMAGE_SOURCE_DIR="$BACKEND_DIR/images"
 ASSETS_DIR="app/src/main/assets"
 
 echo "Bundling card images from: $IMAGE_SOURCE_DIR"
 echo "Target directory: $ASSETS_DIR"
+
+# Generate manifest first
+echo "Generating image manifest..."
+python3 "$BACKEND_DIR/generate_image_manifest.py"
 
 # Remove old thumbnails/fullsize if they exist
 rm -rf "$ASSETS_DIR/thumbnails" "$ASSETS_DIR/fullsize"
@@ -29,6 +34,11 @@ else
     echo "ERROR: Mobile directory not found at $IMAGE_SOURCE_DIR/mobile"
     exit 1
 fi
+
+# Copy manifest
+echo "Copying image manifest..."
+cp "$BACKEND_DIR/images_manifest.json" "$ASSETS_DIR/images_manifest.json"
+echo "✓ Copied images_manifest.json"
 
 echo ""
 echo "Image bundling complete!"

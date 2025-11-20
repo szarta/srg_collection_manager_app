@@ -1,4 +1,142 @@
-# Session Notes - Nov 20, 2025
+# Session Notes - Nov 20, 2025 (Part 2)
+
+## What Was Completed This Session ✅
+
+### Google Play Store Preparation (IN PROGRESS)
+
+**Release Build Configuration (COMPLETED):**
+1. **Keystore Generated** (`release.keystore`)
+   - Alias: `srg_inventory`
+   - Validity: 10,000 days
+   - Stored in project root (gitignored)
+
+2. **Signing Config Added** (`app/build.gradle.kts`)
+   - Loads credentials from `keystore.properties`
+   - Both keystore and properties file gitignored
+
+3. **ProGuard/R8 Rules** (`app/proguard-rules.pro`)
+   - Rules for Room, Retrofit, OkHttp, Gson, Coroutines
+   - Debug logs (Log.d, Log.v) stripped in release
+   - Error logs (Log.e, Log.w) preserved
+
+4. **Minification Enabled**
+   - `isMinifyEnabled = true`
+   - `isShrinkResources = true`
+   - Release APK: 154MB (down from 167MB debug)
+
+5. **Privacy Policy Published**
+   - Created `/privacy` page on get-diced.com
+   - URL: https://get-diced.com/privacy
+   - Covers app and website data practices
+
+6. **Store Descriptions Drafted**
+   - Short (77 chars): Card viewer, collection manager, and deck builder for SRG Supershow card game.
+   - Full description with features, links, disclaimer
+
+7. **Acknowledgements Added** (`README.md`)
+   - Steve Resk, SRG Universe team, wrestlers, community
+   - SRGPC.net contributors
+   - Claude (Anthropic)
+
+**Files Modified:**
+- `app/build.gradle.kts` - Signing config, minification
+- `app/proguard-rules.pro` - Library rules, log stripping
+- `.gitignore` - Keystore exclusions
+- `README.md` - Acknowledgements section
+
+**Files Created:**
+- `release.keystore` - Release signing key
+- `keystore.properties` - Keystore credentials
+- `~/data/srg_card_search_website/frontend/src/pages/PrivacyPolicy.jsx`
+
+**Remaining Tasks:**
+- [ ] Test on multiple device sizes
+- [ ] Screenshots (phone + tablet)
+- [ ] Feature graphic (1024x500)
+- [ ] Content rating questionnaire
+
+**Keystore Credentials:**
+- Stored in `keystore.properties` (gitignored)
+- Keep a secure backup of both `release.keystore` and `keystore.properties`
+
+---
+
+### Image Sync Implementation (COMPLETED)
+
+**Goal:** Allow app to sync new/changed images from server without re-downloading everything
+
+**Server Side:**
+1. `generate_image_manifest.py` - Creates `images_manifest.json` with SHA-256 hashes
+2. `/api/images/manifest` endpoint in main.py
+3. `/images/mobile/{path}` static file serving
+
+**App Side:**
+1. `ImageSyncRepository.kt` - Core sync logic
+   - Loads bundled manifest from assets
+   - Fetches server manifest via API
+   - Compares SHA-256 hashes
+   - Downloads only new/changed images to internal storage
+   - Saves local manifest tracking synced images
+
+2. `ImageUtils.kt` - Updated loading strategy
+   - Priority: synced images → bundled assets → placeholder
+   - `getSyncedImageFile()` checks internal storage first
+
+3. `CollectionViewModel` - Image sync state
+   - `isImageSyncing`, `imageSyncProgress` state flows
+   - `syncImages()` function with progress callback
+
+4. `SettingsScreen` - UI for image sync
+   - "Images" card with "Sync new images" button
+   - Progress indicator showing downloaded/total
+   - Status message when complete
+
+**Workflow:**
+1. App ships with `images_manifest.json` in assets (3648 images)
+2. User taps "Sync new images" in Settings
+3. App fetches server manifest, compares hashes
+4. Downloads only images where hash differs or missing
+5. Saves to internal storage (`synced_images/{first2}/{uuid}.webp`)
+6. ImageUtils loads synced images first, then falls back to bundled
+
+**Files Created:**
+- `~/data/srg_card_search_website/backend/app/generate_image_manifest.py`
+- `~/data/srg_card_search_website/backend/app/convert_to_mobile.py`
+- `app/src/main/kotlin/com/srg/inventory/api/ImageSyncRepository.kt`
+- `app/src/main/assets/images_manifest.json`
+
+**Files Modified:**
+- `~/data/srg_card_search_website/backend/app/main.py` - Added manifest endpoint
+- `app/src/main/kotlin/com/srg/inventory/api/GetDicedApi.kt` - Added manifest API
+- `app/src/main/kotlin/com/srg/inventory/utils/ImageUtils.kt` - Check synced first
+- `app/src/main/kotlin/com/srg/inventory/ui/CollectionViewModel.kt` - Image sync state
+- `app/src/main/kotlin/com/srg/inventory/ui/SettingsScreen.kt` - Sync UI
+- `bundle_images.sh` - Generate and copy manifest
+
+**Image Sync Commands:**
+```bash
+# Generate manifest and convert missing images (on dev machine)
+cd ~/data/srg_card_search_website/backend/app
+python3 generate_image_manifest.py
+python3 convert_to_mobile.py
+
+# Upload mobile images to server
+rsync -avz ~/data/srg_card_search_website/backend/app/images/mobile/ dondo@get-diced.com:srg_card_search_website/backend/app/images/mobile/
+
+# Bundle for app release
+cd /home/brandon/data/srg_collection_manager_app
+./bundle_images.sh
+```
+
+**Current State:**
+- 3648 images synced and bundled (166MB)
+- Manifest generated with SHA-256 hashes
+- Server endpoints deployed
+- App UI complete with sync button
+
+---
+
+# Session Notes - Nov 20, 2025 (Part 1)
 
 ## What Was Completed This Session ✅
 

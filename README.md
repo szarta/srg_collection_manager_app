@@ -248,6 +248,17 @@ See [PIVOT_PLAN.md](PIVOT_PLAN.md) for the full implementation plan.
 
 **This is an unofficial fan project.** It is in no way supported or explicitly endorsed by the game or its creators. This project was created with permission from Steve Resk (SRG - Steve Resk Gaming).
 
+## Acknowledgements
+
+Special thanks to:
+
+- **Steve Resk** - Creator of SRG Supershow, for granting permission for this project
+- **SRG Universe team** - Artists, designers, and everyone who brings Supershow to life
+- **The wrestlers** - Past, present, and future competitors in the ring
+- **The Supershow community** - Players, collectors, and fans who keep the game thriving
+- **SRGPC.net** - The original card database (https://www.srgpc.net/) that accelerated this project, and all the contributors who built and maintained it
+- **Claude (Anthropic)** - AI pair programming partner for development
+
 ## Copyright & License
 
 ### Source Code

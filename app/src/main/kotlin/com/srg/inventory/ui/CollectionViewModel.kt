@@ -5,6 +5,7 @@ import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.srg.inventory.api.CardSyncRepository
 import com.srg.inventory.api.GetDicedApi
+import com.srg.inventory.api.ImageSyncRepository
 import com.srg.inventory.api.RetrofitClient
 import com.srg.inventory.data.*
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -27,6 +28,7 @@ class CollectionViewModel(application: Application) : AndroidViewModel(applicati
         RetrofitClient.api,
         database.cardDao()
     )
+    private val imageSyncRepository = ImageSyncRepository(application)
 
     // ==================== UI State ====================
 
@@ -153,6 +155,13 @@ class CollectionViewModel(application: Application) : AndroidViewModel(applicati
 
     private val _cardCount = MutableStateFlow(0)
     val cardCount: StateFlow<Int> = _cardCount.asStateFlow()
+
+    // Image sync state
+    private val _isImageSyncing = MutableStateFlow(false)
+    val isImageSyncing: StateFlow<Boolean> = _isImageSyncing.asStateFlow()
+
+    private val _imageSyncProgress = MutableStateFlow<Pair<Int, Int>?>(null)
+    val imageSyncProgress: StateFlow<Pair<Int, Int>?> = _imageSyncProgress.asStateFlow()
 
     // Error state
     private val _errorMessage = MutableStateFlow<String?>(null)
@@ -321,6 +330,33 @@ class CollectionViewModel(application: Application) : AndroidViewModel(applicati
                 _errorMessage.value = "Sync error: ${e.message}"
             } finally {
                 _isSyncing.value = false
+            }
+        }
+    }
+
+    fun syncImages() {
+        viewModelScope.launch {
+            try {
+                _isImageSyncing.value = true
+                _errorMessage.value = null
+                _imageSyncProgress.value = null
+
+                val result = imageSyncRepository.syncImages { downloaded, total ->
+                    _imageSyncProgress.value = Pair(downloaded, total)
+                }
+
+                result.onSuccess { (downloaded, total) ->
+                    if (total == 0) {
+                        _imageSyncProgress.value = Pair(0, 0)
+                    }
+                }.onFailure { error ->
+                    _errorMessage.value = "Image sync failed: ${error.message}"
+                }
+
+            } catch (e: Exception) {
+                _errorMessage.value = "Image sync error: ${e.message}"
+            } finally {
+                _isImageSyncing.value = false
             }
         }
     }

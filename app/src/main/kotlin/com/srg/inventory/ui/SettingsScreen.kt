@@ -23,6 +23,8 @@ fun SettingsScreen(
     val lastSyncTime by viewModel.lastSyncTime.collectAsState()
     val cardCount by viewModel.cardCount.collectAsState()
     val errorMessage by viewModel.errorMessage.collectAsState()
+    val isImageSyncing by viewModel.isImageSyncing.collectAsState()
+    val imageSyncProgress by viewModel.imageSyncProgress.collectAsState()
 
     Scaffold(
         topBar = {
@@ -120,6 +122,68 @@ fun SettingsScreen(
                         )
                         Spacer(modifier = Modifier.width(8.dp))
                         Text(if (isSyncing) "Syncing..." else "Sync from get-diced.com")
+                    }
+                }
+            }
+
+            // Image Sync Section
+            Card(
+                modifier = Modifier.fillMaxWidth(),
+                colors = CardDefaults.cardColors(
+                    containerColor = MaterialTheme.colorScheme.surfaceVariant
+                )
+            ) {
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(16.dp),
+                    verticalArrangement = Arrangement.spacedBy(12.dp)
+                ) {
+                    Text(
+                        text = "Images",
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.Bold
+                    )
+
+                    // Progress info
+                    if (isImageSyncing && imageSyncProgress != null) {
+                        val (downloaded, total) = imageSyncProgress!!
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Text(
+                                text = "Downloading: $downloaded / $total",
+                                style = MaterialTheme.typography.bodyMedium
+                            )
+                            CircularProgressIndicator(
+                                modifier = Modifier.size(24.dp),
+                                strokeWidth = 2.dp
+                            )
+                        }
+                    } else if (imageSyncProgress != null) {
+                        val (downloaded, total) = imageSyncProgress!!
+                        Text(
+                            text = if (total == 0) "Images up to date" else "Downloaded $downloaded images",
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+
+                    // Sync images button
+                    Button(
+                        onClick = { viewModel.syncImages() },
+                        enabled = !isImageSyncing && !isSyncing,
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Icon(
+                            Icons.Default.Image,
+                            contentDescription = null,
+                            modifier = Modifier.size(18.dp)
+                        )
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text(if (isImageSyncing) "Syncing images..." else "Sync new images")
                     }
                 }
             }

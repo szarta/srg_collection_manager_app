@@ -39,7 +39,25 @@ interface GetDicedApi {
     @DELETE("api/shared-lists/{shared_id}")
     suspend fun deleteSharedList(@Path("shared_id") sharedId: String)
 
+    @GET("api/images/manifest")
+    suspend fun getImageManifest(): ImageManifest
+
     companion object {
         const val BASE_URL = "https://get-diced.com/"
     }
 }
+
+/**
+ * Image manifest for sync
+ */
+data class ImageManifest(
+    val version: Int,
+    val generated: String,
+    val image_count: Int,
+    val images: Map<String, ImageInfo>
+)
+
+data class ImageInfo(
+    val path: String,
+    val hash: String
+)
