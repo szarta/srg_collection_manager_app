@@ -10,9 +10,13 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import coil.compose.AsyncImage
 import com.srg.inventory.data.Card
+import com.srg.inventory.utils.ImageUtils
 
 /**
  * Standalone card search screen for browsing cards
@@ -21,7 +25,6 @@ import com.srg.inventory.data.Card
 @Composable
 fun CardSearchScreen(
     viewModel: CollectionViewModel,
-    onAddToCollection: (String) -> Unit,
     modifier: Modifier = Modifier
 ) {
     val searchQuery by viewModel.searchQuery.collectAsState()
@@ -124,11 +127,7 @@ fun CardSearchScreen(
     selectedCard?.let { card ->
         CardDetailsDialog(
             card = card,
-            onDismiss = { selectedCard = null },
-            onAddToCollection = {
-                onAddToCollection(card.dbUuid)
-                selectedCard = null
-            }
+            onDismiss = { selectedCard = null }
         )
     }
 }
@@ -262,9 +261,10 @@ fun BrowseCardItem(
 @Composable
 fun CardDetailsDialog(
     card: Card,
-    onDismiss: () -> Unit,
-    onAddToCollection: () -> Unit
+    onDismiss: () -> Unit
 ) {
+    val context = LocalContext.current
+
     AlertDialog(
         onDismissRequest = onDismiss,
         title = {
@@ -287,6 +287,18 @@ fun CardDetailsDialog(
             LazyColumn(
                 verticalArrangement = Arrangement.spacedBy(12.dp)
             ) {
+                // Card image
+                item {
+                    AsyncImage(
+                        model = ImageUtils.buildCardImageRequest(context, card.dbUuid, thumbnail = false),
+                        contentDescription = card.name,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .aspectRatio(0.7f),
+                        contentScale = ContentScale.Fit
+                    )
+                }
+
                 // Stats for competitors
                 if (card.isCompetitor) {
                     item {
@@ -447,13 +459,6 @@ fun CardDetailsDialog(
             }
         },
         confirmButton = {
-            Button(onClick = onAddToCollection) {
-                Icon(Icons.Default.Add, contentDescription = null)
-                Spacer(modifier = Modifier.width(8.dp))
-                Text("Add to Collection")
-            }
-        },
-        dismissButton = {
             TextButton(onClick = onDismiss) {
                 Text("Close")
             }

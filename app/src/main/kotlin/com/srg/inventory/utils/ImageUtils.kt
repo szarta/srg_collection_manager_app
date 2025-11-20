@@ -8,10 +8,8 @@ import java.io.File
  * Utility functions for loading card images
  *
  * Image loading strategy:
- * 1. Check bundled assets (thumbnails/{first2}/{uuid}.webp)
- * 2. Check downloaded cache
- * 3. Load from server (https://get-diced.com/images/thumbnails/{first2}/{uuid}.webp)
- * 4. Show placeholder if unavailable
+ * 1. Load from bundled mobile assets (mobile/{first2}/{uuid}.webp)
+ * 2. Show placeholder if unavailable
  */
 object ImageUtils {
 
@@ -22,8 +20,8 @@ object ImageUtils {
      */
     fun getAssetPath(cardUuid: String, thumbnail: Boolean = true): String {
         val first2 = cardUuid.take(2)
-        val type = if (thumbnail) "thumbnails" else "fullsize"
-        return "$type/$first2/$cardUuid.webp"
+        // Always use mobile-optimized images
+        return "mobile/$first2/$cardUuid.webp"
     }
 
     /**
@@ -48,20 +46,19 @@ object ImageUtils {
     }
 
     /**
-     * Build an ImageRequest that tries assets first, then server
+     * Build an ImageRequest that loads from bundled mobile assets
      */
     fun buildCardImageRequest(
         context: Context,
         cardUuid: String,
         thumbnail: Boolean = true
     ): ImageRequest {
-        // Try to load from assets first
         val assetPath = getAssetPath(cardUuid, thumbnail)
         val assetUri = "file:///android_asset/$assetPath"
 
         return ImageRequest.Builder(context)
             .data(assetUri)
-            .error(com.srg.inventory.R.drawable.ic_launcher_foreground) // Fallback to app icon for now
+            .error(com.srg.inventory.R.drawable.ic_launcher_foreground)
             .crossfade(true)
             .build()
     }
@@ -78,7 +75,7 @@ object ImageUtils {
 
         return ImageRequest.Builder(context)
             .data(url)
-            .error(com.srg.inventory.R.drawable.ic_launcher_foreground) // Fallback to app icon for now
+            .error(com.srg.inventory.R.drawable.ic_launcher_foreground)
             .crossfade(true)
             .build()
     }

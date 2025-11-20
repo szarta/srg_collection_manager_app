@@ -11,10 +11,14 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import coil.compose.AsyncImage
 import com.srg.inventory.data.Card
+import com.srg.inventory.utils.ImageUtils
 
 /**
  * Screen for searching and adding cards to a folder
@@ -407,6 +411,7 @@ fun AddCardDialog(
     onDismiss: () -> Unit,
     onConfirm: (Int) -> Unit
 ) {
+    val context = LocalContext.current
     var quantity by remember { mutableStateOf("1") }
 
     AlertDialog(
@@ -414,6 +419,15 @@ fun AddCardDialog(
         title = { Text("Add to Folder") },
         text = {
             Column {
+                AsyncImage(
+                    model = ImageUtils.buildCardImageRequest(context, card.dbUuid, thumbnail = false),
+                    contentDescription = card.name,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .aspectRatio(0.7f),
+                    contentScale = ContentScale.Fit
+                )
+                Spacer(modifier = Modifier.height(12.dp))
                 Text(
                     text = card.name,
                     style = MaterialTheme.typography.bodyLarge,

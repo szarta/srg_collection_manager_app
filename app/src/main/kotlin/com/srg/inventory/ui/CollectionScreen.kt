@@ -9,8 +9,12 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
+import coil.compose.AsyncImage
 import com.srg.inventory.data.UserCard
+import com.srg.inventory.utils.ImageUtils
 
 /**
  * Collection view screen showing owned and wanted cards
@@ -175,6 +179,7 @@ fun EditCardDialog(
     onDismiss: () -> Unit,
     onSave: (Int, Int) -> Unit
 ) {
+    val context = LocalContext.current
     var ownedCount by remember { mutableStateOf(card.quantityOwned.toString()) }
     var wantedCount by remember { mutableStateOf(card.quantityWanted.toString()) }
 
@@ -183,6 +188,15 @@ fun EditCardDialog(
         title = { Text("Edit ${card.cardName}") },
         text = {
             Column {
+                AsyncImage(
+                    model = ImageUtils.buildCardImageRequest(context, card.cardId, thumbnail = false),
+                    contentDescription = card.cardName,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .aspectRatio(0.7f),
+                    contentScale = ContentScale.Fit
+                )
+                Spacer(modifier = Modifier.height(12.dp))
                 OutlinedTextField(
                     value = ownedCount,
                     onValueChange = { ownedCount = it.filter { c -> c.isDigit() } },

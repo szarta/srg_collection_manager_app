@@ -44,7 +44,7 @@ fun MainScreen() {
         BottomNavItem(
             route = Screen.CardSearch.route,
             icon = Icons.Default.Search,
-            label = "Search"
+            label = "Viewer"
         ),
         BottomNavItem(
             route = Screen.Settings.route,

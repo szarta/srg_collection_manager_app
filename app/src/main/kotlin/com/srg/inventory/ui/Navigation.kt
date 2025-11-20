@@ -86,13 +86,10 @@ fun CollectionNavHost(
             DecksScreen()
         }
 
-        // Card Search screen
+        // Card Viewer screen
         composable(Screen.CardSearch.route) {
             CardSearchScreen(
-                viewModel = viewModel,
-                onAddToCollection = { cardUuid ->
-                    // TODO: Show folder selector dialog
-                }
+                viewModel = viewModel
             )
         }
 

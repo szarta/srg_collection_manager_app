@@ -9,10 +9,15 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import coil.compose.AsyncImage
+import com.srg.inventory.data.Card
 import com.srg.inventory.data.CardWithQuantity
+import com.srg.inventory.utils.ImageUtils
 
 /**
  * Screen showing cards within a specific folder
@@ -33,7 +38,8 @@ fun FolderDetailScreen(
         foldersWithCounts.find { it.folder.id == folderId }?.folder
     }
 
-    var cardToEdit by remember { mutableStateOf<CardWithQuantity?>(null) }
+    var cardToView by remember { mutableStateOf<CardWithQuantity?>(null) }
+    var cardToEditQuantity by remember { mutableStateOf<CardWithQuantity?>(null) }
 
     LaunchedEffect(folderId) {
         viewModel.setCurrentFolder(folderId)
@@ -88,25 +94,35 @@ fun FolderDetailScreen(
                 items(cardsWithQuantities, key = { it.card.dbUuid }) { cardWithQuantity ->
                     CardInFolderItem(
                         cardWithQuantity = cardWithQuantity,
-                        onEditClick = { cardToEdit = cardWithQuantity },
-                        onRemoveClick = {
-                            viewModel.removeCardFromFolder(folderId, cardWithQuantity.card.dbUuid)
-                        }
+                        onViewClick = { cardToView = cardWithQuantity },
+                        onEditQuantityClick = { cardToEditQuantity = cardWithQuantity }
                     )
                 }
             }
         }
     }
 
+    // View card details dialog
+    cardToView?.let { cardWithQty ->
+        CardDetailDialog(
+            card = cardWithQty.card,
+            onDismiss = { cardToView = null }
+        )
+    }
+
     // Edit quantity dialog
-    cardToEdit?.let { card ->
+    cardToEditQuantity?.let { cardWithQty ->
         EditQuantityDialog(
-            cardName = card.card.name,
-            currentQuantity = card.quantity,
-            onDismiss = { cardToEdit = null },
-            onConfirm = { newQuantity ->
-                viewModel.updateCardQuantityInFolder(folderId, card.card.dbUuid, newQuantity)
-                cardToEdit = null
+            cardName = cardWithQty.card.name,
+            currentQuantity = cardWithQty.quantity,
+            onDismiss = { cardToEditQuantity = null },
+            onQuantityChange = { newQuantity ->
+                viewModel.updateCardQuantityInFolder(folderId, cardWithQty.card.dbUuid, newQuantity)
+                cardToEditQuantity = null
+            },
+            onDelete = {
+                viewModel.removeCardFromFolder(folderId, cardWithQty.card.dbUuid)
+                cardToEditQuantity = null
             }
         )
     }
@@ -115,8 +131,8 @@ fun FolderDetailScreen(
 @Composable
 fun CardInFolderItem(
     cardWithQuantity: CardWithQuantity,
-    onEditClick: () -> Unit,
-    onRemoveClick: () -> Unit,
+    onViewClick: () -> Unit,
+    onEditQuantityClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
     Card(
@@ -218,18 +234,18 @@ fun CardInFolderItem(
             Spacer(modifier = Modifier.width(4.dp))
 
             // Actions
-            IconButton(onClick = onEditClick) {
+            IconButton(onClick = onViewClick) {
+                Icon(
+                    Icons.Default.Search,
+                    contentDescription = "View card details",
+                    tint = MaterialTheme.colorScheme.primary
+                )
+            }
+            IconButton(onClick = onEditQuantityClick) {
                 Icon(
                     Icons.Default.Edit,
                     contentDescription = "Edit quantity",
                     tint = MaterialTheme.colorScheme.primary
-                )
-            }
-            IconButton(onClick = onRemoveClick) {
-                Icon(
-                    Icons.Default.Delete,
-                    contentDescription = "Remove from folder",
-                    tint = MaterialTheme.colorScheme.error
                 )
             }
         }
@@ -273,41 +289,228 @@ fun EmptyFolderState(
 }
 
 @Composable
+fun CardDetailDialog(
+    card: Card,
+    onDismiss: () -> Unit
+) {
+    val context = LocalContext.current
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = {
+            Column {
+                Text(card.name)
+                Spacer(modifier = Modifier.height(4.dp))
+                Surface(
+                    color = MaterialTheme.colorScheme.secondaryContainer,
+                    shape = MaterialTheme.shapes.extraSmall
+                ) {
+                    Text(
+                        text = card.cardType.replace("Card", ""),
+                        style = MaterialTheme.typography.labelSmall,
+                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
+                    )
+                }
+            }
+        },
+        text = {
+            LazyColumn(
+                verticalArrangement = Arrangement.spacedBy(12.dp)
+            ) {
+                // Card image
+                item {
+                    AsyncImage(
+                        model = ImageUtils.buildCardImageRequest(context, card.dbUuid, thumbnail = false),
+                        contentDescription = card.name,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .aspectRatio(0.7f),
+                        contentScale = ContentScale.Fit
+                    )
+                }
+
+                // Stats for competitors
+                if (card.isCompetitor) {
+                    item {
+                        Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                            Text(
+                                text = "Stats",
+                                style = MaterialTheme.typography.labelMedium,
+                                fontWeight = FontWeight.Bold
+                            )
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.SpaceAround
+                            ) {
+                                CompetitorStatItem("PWR", card.power)
+                                CompetitorStatItem("AGI", card.agility)
+                                CompetitorStatItem("STR", card.strike)
+                                CompetitorStatItem("SUB", card.submission)
+                                CompetitorStatItem("GRP", card.grapple)
+                                CompetitorStatItem("TEC", card.technique)
+                            }
+                            card.division?.let {
+                                Text(
+                                    text = "Division: $it",
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                            }
+                        }
+                    }
+                }
+
+                // Main deck properties
+                if (card.isMainDeck) {
+                    item {
+                        Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                            Text(
+                                text = "Properties",
+                                style = MaterialTheme.typography.labelMedium,
+                                fontWeight = FontWeight.Bold
+                            )
+                            card.deckCardNumber?.let {
+                                Text("Deck #: $it", style = MaterialTheme.typography.bodySmall)
+                            }
+                            card.atkType?.let {
+                                Text("Attack Type: $it", style = MaterialTheme.typography.bodySmall)
+                            }
+                            card.playOrder?.let {
+                                Text("Play Order: $it", style = MaterialTheme.typography.bodySmall)
+                            }
+                        }
+                    }
+                }
+
+                // Rules text
+                card.rulesText?.let { rules ->
+                    item {
+                        Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                            Text(
+                                text = "Rules",
+                                style = MaterialTheme.typography.labelMedium,
+                                fontWeight = FontWeight.Bold
+                            )
+                            Text(
+                                text = rules,
+                                style = MaterialTheme.typography.bodySmall
+                            )
+                        }
+                    }
+                }
+
+                // Errata
+                card.errataText?.let { errata ->
+                    item {
+                        Surface(
+                            color = MaterialTheme.colorScheme.secondaryContainer,
+                            shape = MaterialTheme.shapes.small
+                        ) {
+                            Column(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(8.dp),
+                                verticalArrangement = Arrangement.spacedBy(4.dp)
+                            ) {
+                                Text(
+                                    text = "Errata",
+                                    style = MaterialTheme.typography.labelMedium,
+                                    fontWeight = FontWeight.Bold
+                                )
+                                Text(
+                                    text = errata,
+                                    style = MaterialTheme.typography.bodySmall
+                                )
+                            }
+                        }
+                    }
+                }
+
+                // Release set
+                card.releaseSet?.let { set ->
+                    item {
+                        Text(
+                            text = "Set: $set",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                }
+            }
+        },
+        confirmButton = {
+            TextButton(onClick = onDismiss) {
+                Text("Close")
+            }
+        }
+    )
+}
+
+@Composable
 fun EditQuantityDialog(
     cardName: String,
     currentQuantity: Int,
     onDismiss: () -> Unit,
-    onConfirm: (Int) -> Unit
+    onQuantityChange: (Int) -> Unit,
+    onDelete: () -> Unit
 ) {
-    var quantity by remember { mutableStateOf(currentQuantity.toString()) }
+    var quantity by remember { mutableStateOf(currentQuantity) }
 
     AlertDialog(
         onDismissRequest = onDismiss,
         title = { Text("Edit Quantity") },
         text = {
-            Column {
+            Column(
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.spacedBy(16.dp)
+            ) {
                 Text(
                     text = cardName,
                     style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                    maxLines = 2,
+                    overflow = TextOverflow.Ellipsis
                 )
-                Spacer(modifier = Modifier.height(16.dp))
-                OutlinedTextField(
-                    value = quantity,
-                    onValueChange = { quantity = it.filter { char -> char.isDigit() } },
-                    label = { Text("Quantity") },
-                    singleLine = true,
-                    modifier = Modifier.fillMaxWidth()
-                )
+
+                // +/- controls
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(16.dp)
+                ) {
+                    IconButton(
+                        onClick = { if (quantity > 1) quantity-- },
+                        enabled = quantity > 1
+                    ) {
+                        Icon(Icons.Default.Remove, contentDescription = "Decrease")
+                    }
+
+                    Text(
+                        text = quantity.toString(),
+                        style = MaterialTheme.typography.headlineMedium,
+                        fontWeight = FontWeight.Bold
+                    )
+
+                    IconButton(onClick = { quantity++ }) {
+                        Icon(Icons.Default.Add, contentDescription = "Increase")
+                    }
+                }
+
+                // Delete button
+                TextButton(
+                    onClick = onDelete,
+                    colors = ButtonDefaults.textButtonColors(
+                        contentColor = MaterialTheme.colorScheme.error
+                    )
+                ) {
+                    Icon(Icons.Default.Delete, contentDescription = null)
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text("Remove from folder")
+                }
             }
         },
         confirmButton = {
             TextButton(
-                onClick = {
-                    val newQuantity = quantity.toIntOrNull() ?: currentQuantity
-                    onConfirm(newQuantity)
-                },
-                enabled = quantity.isNotBlank() && quantity.toIntOrNull() != null && quantity.toInt() > 0
+                onClick = { onQuantityChange(quantity) },
+                enabled = quantity != currentQuantity
             ) {
                 Text("Save")
             }
@@ -318,4 +521,22 @@ fun EditQuantityDialog(
             }
         }
     )
+}
+
+@Composable
+private fun CompetitorStatItem(label: String, value: Int?) {
+    Column(
+        horizontalAlignment = Alignment.CenterHorizontally
+    ) {
+        Text(
+            text = label,
+            style = MaterialTheme.typography.labelSmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant
+        )
+        Text(
+            text = value?.toString() ?: "-",
+            style = MaterialTheme.typography.bodyMedium,
+            fontWeight = FontWeight.Bold
+        )
+    }
 }
