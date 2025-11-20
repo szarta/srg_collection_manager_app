@@ -467,11 +467,90 @@ IMAGE_SOURCE_DIR=~/data/srg_card_search_website/backend/app/images ./bundle_imag
 
 None! Everything is working smoothly.
 
+---
+
+## Remaining Features for Future Versions 📋
+
+### High Priority
+1. **Image sync from server** - Download new images when cards are synced (currently only bundled images work)
+2. **Search within folders** - Filter/search cards in collection folders
+
+### Nice to Have
+3. **Deck validation** - Check deck completeness (all 30 slots filled, entrance, competitor)
+4. **Folder sorting options** - Sort by name, type, quantity, date added
+
+---
+
+## App Store Release Preparation 🚀
+
+### Version 1.0 Scope
+- All current features are ready for initial release
+- Incremental feature delivery planned for future versions
+- Database migrations ensure user data (collections, decks) preserved on updates
+
+### Technical Tasks
+- [ ] Release signing key (keystore)
+- [ ] ProGuard/R8 minification rules
+- [ ] Version code/name in build.gradle
+- [ ] Remove debug logging
+- [ ] Test on multiple device sizes
+
+### Store Listing
+- [ ] Screenshots (phone + tablet)
+- [ ] Feature graphic (1024x500)
+- [ ] Short description (80 chars)
+- [ ] Full description
+- [ ] Privacy policy URL
+- [ ] Content rating questionnaire
+
+### Legal/Copyright
+- **Source Code License**: MIT License
+- **Card Content**: All SRG Supershow card properties are copyright SRG Universe
+- **Disclaimer**: This is an unofficial fan project - in no way supported or explicitly endorsed by the game or its creators
+- **Permission**: Steve Resk (SRG - Steve Resk Gaming) has given permission for this project
+
+### Database Migration Safety
+- Room database migrations (v1→v2→v3) preserve all user data
+- Collections (folder_cards) and decks (deck_folders, decks, deck_cards) are never dropped
+- App updates will NOT erase saved cards or decks
+
+---
+
+## Session Summary - Nov 20, 2025 (Current)
+
+### What Was Completed
+1. **Deckbuilding Feature** - Complete (see top of notes)
+2. **Bug Fixes**
+   - Filter persistence fix: Filters now clear when switching card types in Viewer
+   - Deck editor layout: Deck name on own line, action buttons below
+3. **Documentation Updates**
+   - SESSION_NOTES.md - Full deckbuilding completion details
+   - PIVOT_PLAN.md - Phase 3 marked complete, Session 7 complete
+   - README.md - Added deckbuilding features, copyright/disclaimer section
+4. **App Store Preparation Planning**
+   - Added remaining features list
+   - Added release preparation checklist
+   - Added legal/copyright notices
+
+### Files Modified This Session
+- `app/src/main/kotlin/com/srg/inventory/ui/DeckEditorScreen.kt` - Layout fix
+- `app/src/main/kotlin/com/srg/inventory/ui/CollectionViewModel.kt` - Filter clearing
+- `SESSION_NOTES.md` - Full update
+- `PIVOT_PLAN.md` - Phase 3 complete
+- `README.md` - Copyright/disclaimer added
+
+### Next Session: Google Play Store Preparation
+- Release build configuration
+- ProGuard/R8 rules
+- Signing keystore generation
+- Privacy policy draft
+- Store listing content
+
 ## Token Usage This Session 📊
 - Session 1 (bundled DB): ~84,000 tokens
 - Session 2 (navigation + images): ~88,000 tokens
-- Total: ~172,000 / 200,000 tokens
-- Remaining: ~28,000 tokens
+- Session 3 (deckbuilding + docs): ~85,000 tokens
+- Total: ~257,000 tokens across sessions
 
 ## Previous Session (Part 1)
 

@@ -244,6 +244,17 @@ See [PIVOT_PLAN.md](PIVOT_PLAN.md) for the full implementation plan.
 - Improved animations and transitions
 - Performance optimizations
 
-## License
+## Disclaimer
 
-See [LICENSE](LICENSE) file.
+**This is an unofficial fan project.** It is in no way supported or explicitly endorsed by the game or its creators. This project was created with permission from Steve Resk (SRG - Steve Resk Gaming).
+
+## Copyright & License
+
+### Source Code
+The source code for this application is licensed under the MIT License. See [LICENSE](LICENSE) file.
+
+### Card Content
+All SRG Supershow card names, images, rules text, and related game content are copyright **SRG Universe**. The card data and images are used with permission for this fan project.
+
+### Trademarks
+SRG, Supershow, and related marks are trademarks of SRG Universe. This project is not affiliated with or endorsed by SRG Universe.
