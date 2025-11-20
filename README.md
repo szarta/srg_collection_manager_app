@@ -18,15 +18,19 @@ Android app for managing your SRG (Super Ring of Glory) wrestling card collectio
 - **Offline-First** - Works offline with bundled database + images, sync for latest updates
 - **7 Card Types Supported** - MainDeck, SingleCompetitor, TornadoCompetitor, TrioCompetitor, Entrance, Spectacle, CrowdMeter
 - **Image Loading** - Coil library with bundled mobile-optimized assets
+- **Full Deckbuilding** - ✨ Complete slot-based deck editor with smart filtering
+  - Deck folders (Singles, Tornado, Trios, Tag, custom)
+  - Entrance, Competitor, Deck cards 1-30, Alternates
+  - Smart card filtering by slot type and deck_card_number
+  - Spectacle type selector (Newman/Valiant)
+- **Deck CSV Export/Import** - Export decks to CSV, import from CSV files
+- **Deck Sharing** - Share decks to get-diced.com, import from shareable URLs
 
 **Note:** New cards are released regularly (~10/month) and the database is actively being updated. The bundled database provides a great starting point, but syncing is recommended to get the latest cards and updates.
 
 ### 🔜 Coming Soon
-- **Folder Sorting** - Sort cards within folders (by name, type, deck #, etc.)
 - **Folder Search** - Search within specific collection folders
-- **Deckbuilding** - Build and manage decks with smart suggestions
-- **Deck Export/Import** - Share decks via get-diced.com API
-- **Shared Lists** - Import collection/deck links from get-diced.com
+- **Deck Validation** - Check deck completeness and rules
 
 ## Tech Stack
 
@@ -46,8 +50,8 @@ This app integrates with [get-diced.com](https://get-diced.com) to:
 - ✅ Access all 7 card types with full metadata
 - ✅ Search and filter with API-backed queries
 - ✅ Load high-quality card images (WebP format, bundled + on-demand)
-- 🔜 Export/import decks via shared lists API
-- 🔜 Share collections and decks with unique URLs
+- ✅ Export/import decks via shared lists API
+- ✅ Share decks with unique URLs
 
 ## Project Structure
 
@@ -79,7 +83,9 @@ app/src/main/kotlin/com/srg/inventory/
 │   ├── FolderDetailScreen.kt    # Cards in folder screen
 │   ├── AddCardToFolderScreen.kt # Card search with filters
 │   ├── CardSearchScreen.kt      # Card Search tab - standalone browse
-│   ├── DecksScreen.kt           # Decks tab - placeholder
+│   ├── DecksScreen.kt           # Decks tab - deck folders + DeckViewModel
+│   ├── DeckListScreen.kt        # Decks in folder
+│   ├── DeckEditorScreen.kt      # Full deck editor with card picker
 │   ├── SettingsScreen.kt        # Settings tab - sync & config
 │   ├── ManualAddScreen.kt       # Legacy search screen (unused)
 │   ├── CollectionScreen.kt      # Legacy collection screen (unused)
@@ -186,11 +192,16 @@ CREATE TABLE folder_cards (
    - Tap **✏️ Edit** icon to change quantity (+/- buttons) or remove card
    - Cards remain in database even when removed from all folders
 
-### 5. Build Decks *(coming soon)*
-   - Create and name your deck
-   - Search and add cards
-   - Get smart suggestions for linked cards
-   - Export/share via get-diced.com
+### 5. Build Decks
+   - Go to **Decks** tab → Select folder (Singles, Tornado, Trios, Tag)
+   - Create a new deck with the **+** button
+   - Tap deck to open editor
+   - Add cards to slots: Entrance, Competitor, Deck 1-30, Alternates
+   - Cards are smart-filtered by slot type (e.g., slot #5 shows only cards with deck_card_number=5)
+   - Select spectacle type (Newman/Valiant) in top bar
+   - **Export/Import**: Use toolbar icons for CSV export/import
+   - **Share**: Share deck to get-diced.com and copy link to clipboard
+   - **Import from URL**: Paste a get-diced.com shareable link to import
 
 ## Roadmap
 
@@ -216,17 +227,17 @@ See [PIVOT_PLAN.md](PIVOT_PLAN.md) for the full implementation plan.
 - ✅ Full card details view (image, stats, rules, errata)
 - ✅ Edit quantity dialog with +/- buttons and delete
 
-### Phase 3: 🔜 Collection Enhancements (Next)
-- Folder sorting (by name, type, deck #, quantity, date)
-- Folder search (filter cards within folders)
-- Bulk operations
+### Phase 3: ✅ Deckbuilding (Completed)
+- ✅ Create/edit/delete decks with slot-based system
+- ✅ Deck folders (Singles, Tornado, Trios, Tag)
+- ✅ Smart card filtering by slot type and deck_card_number
+- ✅ CSV export/import
+- ✅ Share to get-diced.com and import from URLs
 
-### Phase 4: 🔜 Deckbuilding
-- Create/edit/delete decks
-- Smart card suggestions (linked cards, related finishes)
-- Fast deck building tools
-- Export/import via get-diced.com shared lists API
+### Phase 4: 🔜 Collection Enhancements (Next)
+- Folder search (filter cards within folders)
 - Deck validation and statistics
+- Bulk operations
 
 ### Phase 5: 🔜 UI/UX Polish
 - Grid view for card browsing

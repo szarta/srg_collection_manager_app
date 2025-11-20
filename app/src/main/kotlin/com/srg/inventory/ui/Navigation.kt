@@ -26,6 +26,14 @@ sealed class Screen(val route: String) {
     object AddCardToFolder : Screen("folder/{folderId}/add") {
         fun createRoute(folderId: String) = "folder/$folderId/add"
     }
+
+    // Deck sub-screens
+    object DeckFolderDetail : Screen("deck_folder/{folderId}") {
+        fun createRoute(folderId: String) = "deck_folder/$folderId"
+    }
+    object DeckDetail : Screen("deck/{deckId}") {
+        fun createRoute(deckId: String) = "deck/$deckId"
+    }
 }
 
 /**
@@ -81,9 +89,40 @@ fun CollectionNavHost(
             )
         }
 
-        // Decks screen (placeholder)
+        // Decks screen
         composable(Screen.Decks.route) {
-            DecksScreen()
+            DecksScreen(
+                onFolderClick = { folderId ->
+                    navController.navigate(Screen.DeckFolderDetail.createRoute(folderId))
+                }
+            )
+        }
+
+        // Deck folder detail (list of decks in folder)
+        composable(
+            route = Screen.DeckFolderDetail.route,
+            arguments = listOf(navArgument("folderId") { type = NavType.StringType })
+        ) { backStackEntry ->
+            val folderId = backStackEntry.arguments?.getString("folderId") ?: return@composable
+            DeckListScreen(
+                folderId = folderId,
+                onBackClick = { navController.popBackStack() },
+                onDeckClick = { deckId ->
+                    navController.navigate(Screen.DeckDetail.createRoute(deckId))
+                }
+            )
+        }
+
+        // Deck editor
+        composable(
+            route = Screen.DeckDetail.route,
+            arguments = listOf(navArgument("deckId") { type = NavType.StringType })
+        ) { backStackEntry ->
+            val deckId = backStackEntry.arguments?.getString("deckId") ?: return@composable
+            DeckEditorScreen(
+                deckId = deckId,
+                onBackClick = { navController.popBackStack() }
+            )
         }
 
         // Card Viewer screen

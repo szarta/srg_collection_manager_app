@@ -1,3 +1,136 @@
+# Session Notes - Nov 20, 2025
+
+## What Was Completed This Session ✅
+
+### Deckbuilding Foundation (COMPLETED)
+**Goal:** Implement deckbuilding feature with folders, decks, and card slots
+
+**Data Layer (COMPLETED):**
+1. **DeckFolder Entity** (`DeckFolder.kt`)
+   - Organizes decks by type: Singles, Tornado, Trios, Tag (defaults)
+   - Custom folders supported
+   - DAO with all CRUD operations
+
+2. **Deck Entity** (`Deck.kt`)
+   - Belongs to a folder
+   - Has spectacle type (Newman/Valiant)
+   - Tracks created/modified timestamps
+
+3. **DeckCard Entity** (`Deck.kt`)
+   - Slot types: ENTRANCE, COMPETITOR, DECK (1-30), FINISH, ALTERNATE
+   - Links cards to deck slots
+
+4. **DeckRepository** (`DeckRepository.kt`)
+   - All deck operations
+   - Folder management
+   - Card slot operations (setEntrance, setCompetitor, setDeckCard, addFinish, addAlternate)
+
+5. **Database Migration v2→v3**
+   - Added deck_folders, decks, deck_cards tables
+   - Type converters for SpectacleType and DeckSlotType enums
+   - Default folders created on migration
+
+**UI Screens (COMPLETED):**
+1. **DecksScreen** - Shows deck folders (Singles, Tornado, Trios, Tag)
+   - Folder icons per type
+   - Deck count per folder
+   - Create custom folders
+   - Delete custom folders
+
+2. **DeckListScreen** - Shows decks within a folder
+   - Deck name, card count, spectacle type badge
+   - Modified date
+   - Create/delete decks
+   - Navigate to deck editor
+
+3. **DeckViewModel** - State management for all deck operations
+
+4. **Navigation** - Added DeckFolderDetail and DeckDetail routes
+
+5. **DeckEditorScreen** (`DeckEditorScreen.kt`)
+   - Entrance card slot (1)
+   - Competitor card slot (1)
+   - Deck cards 1-30 (finishes are part of deck, typically 28-30)
+   - Alternates section (add multiple)
+   - Spectacle type selector (Newman/Valiant) in top bar
+   - Card removal functionality
+   - Full card picker with search and filtering
+
+6. **Card Picker Integration**
+   - Search cards by name within picker dialog
+   - Smart filtering by slot type:
+     - Entrance → EntranceCard only
+     - Competitor → Filtered by folder (Singles→SingleCompetitorCard, Tornado→TornadoCompetitorCard, Trios→TrioCompetitorCard)
+     - Deck slots → Filtered by deck_card_number (slot #1 shows only cards with deck_card_number=1, etc.)
+     - Alternates → Any card type
+   - Tap to select, auto-closes dialog
+
+**What's Working:**
+- View deck folders with counts
+- Navigate into folders to see decks
+- Create/delete decks
+- See deck metadata (card count, spectacle type, modified date)
+- Full deck editor UI with all slots
+- Navigate: Decks tab → Folder → Deck → Editor
+- Card picker with smart filtering
+- Add/remove cards from any slot
+- Change spectacle type (Newman/Valiant)
+
+7. **CSV Export/Import**
+   - Export deck to CSV (Slot Type, Slot Number, Card Name)
+   - Import deck from CSV file
+   - FileProvider for sharing
+
+8. **Shared List API Integration**
+   - Share deck to get-diced.com API
+   - Copy shareable link to clipboard
+   - Import deck from shareable URL
+   - Cards imported as alternates
+
+**All deckbuilding features complete!**
+
+---
+
+# Session Notes - Nov 19, 2025 (Part 4)
+
+## What Was Completed This Session ✅
+
+### Folder Sorting (COMPLETED)
+**Goal:** Implement custom sort order for cards in folders
+
+**What was done:**
+- Added `sortCardsByType()` function in CollectionViewModel
+- Sort order: EntranceCard → SingleCompetitorCard → TornadoCompetitorCard → TrioCompetitorCard → MainDeckCard (by deck #) → SpectacleCard (Valiant then Newman) → CrowdMeterCard
+- Alphabetical within each type
+
+### CSV Export/Import (COMPLETED)
+**Goal:** Allow exporting and importing folder contents via CSV
+
+**What was done:**
+1. **CSV Export**
+   - Download icon in folder TopAppBar
+   - Exports: Name, Quantity, Card Type, Deck #, Attack Type, Play Order, Division
+   - Uses FileProvider for Android sharing
+   - Added file_paths.xml and AndroidManifest FileProvider config
+
+2. **CSV Import**
+   - Upload icon in folder TopAppBar
+   - Supports both app format and website format
+   - Auto-detects headers and column positions
+   - Matches cards by name (case-insensitive)
+   - Shows import results with not-found card names
+   - Added getCardByName to CardDao, CollectionRepository, CollectionViewModel
+
+### App Icon Fix (COMPLETED)
+- Removed mipmap-anydpi-v26 directory (adaptive icons overriding PNGs)
+- Copied ic_launcher.png to ic_launcher_round.png for all densities
+
+### UI Improvements (COMPLETED)
+- Made card rows clickable (removed magnifying lens icon)
+- Clicking card opens detail dialog directly
+
+---
+
 # Session Notes - Nov 19, 2025 (Part 3)
 
 ## What Was Completed This Session ✅

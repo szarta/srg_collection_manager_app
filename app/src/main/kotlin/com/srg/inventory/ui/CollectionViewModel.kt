@@ -270,6 +270,14 @@ class CollectionViewModel(application: Application) : AndroidViewModel(applicati
 
     fun setCardTypeFilter(cardType: String?) {
         _selectedCardType.value = cardType
+        // Clear type-specific filters when changing card type
+        if (cardType != "MainDeckCard") {
+            _selectedAtkType.value = null
+            _selectedPlayOrder.value = null
+        }
+        if (cardType?.contains("Competitor") != true) {
+            _selectedDivision.value = null
+        }
     }
 
     fun setAtkTypeFilter(atkType: String?) {

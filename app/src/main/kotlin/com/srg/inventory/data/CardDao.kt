@@ -24,6 +24,15 @@ interface CardDao {
     @Query("SELECT * FROM cards WHERE card_type = :cardType ORDER BY name ASC")
     fun getCardsByType(cardType: String): Flow<List<Card>>
 
+    @Query("SELECT * FROM cards WHERE card_type = :cardType ORDER BY name ASC")
+    suspend fun getCardsByTypeSuspend(cardType: String): List<Card>
+
+    @Query("SELECT * FROM cards WHERE card_type = :cardType AND deck_card_number = :deckCardNumber ORDER BY name ASC")
+    suspend fun getCardsByTypeAndNumber(cardType: String, deckCardNumber: Int): List<Card>
+
+    @Query("SELECT * FROM cards ORDER BY name ASC")
+    suspend fun getAllCardsSuspend(): List<Card>
+
     @Query("SELECT DISTINCT card_type FROM cards ORDER BY card_type ASC")
     suspend fun getAllCardTypes(): List<String>
 

@@ -136,83 +136,74 @@ Camera scanning is unreliable due to mismatch between phone photos and high-qual
 
 ---
 
-## Phase 3: Deckbuilding Feature 🃏
+## Phase 3: Deckbuilding Feature 🃏 ✅ COMPLETED
 
-### Goals
-- Create/edit/delete decks
-- Add cards to decks with quantities
-- Smart card suggestions
-- Export/import decks via get-diced.com API
+### Goals ✅
+- ✅ Create/edit/delete decks
+- ✅ Add cards to decks with slot-based system
+- ✅ Smart card filtering by slot type
+- ✅ Export/import decks via CSV and get-diced.com API
 
 ### Tasks
 
-#### 3.1: Data Layer
-1. **Create Deck Entities** (`app/src/main/kotlin/com/srg/inventory/data/`)
-   - `Deck.kt` - id, name, description, created_date, modified_date
-   - `DeckCard.kt` - deck_id, card_id, quantity, notes
-   - Many-to-many relationship
+#### 3.1: Data Layer ✅ COMPLETED
+1. **Created Deck Entities** (`app/src/main/kotlin/com/srg/inventory/data/`)
+   - ✅ `DeckFolder.kt` - Organizes decks by type (Singles, Tornado, Trios, Tag, custom)
+   - ✅ `Deck.kt` - id, name, folderId, spectacleType, timestamps
+   - ✅ `DeckCard.kt` - deckId, cardUuid, slotType (ENTRANCE, COMPETITOR, DECK, ALTERNATE), slotNumber
 
-2. **Create DAOs**
-   - `DeckDao.kt` - CRUD for decks
-   - `DeckCardDao.kt` - Manage deck contents
-   - Query: Get deck with all cards
+2. **Created DAOs** ✅
+   - ✅ `DeckFolderDao.kt` - Folder CRUD
+   - ✅ `DeckDao.kt` - Deck CRUD
+   - ✅ `DeckCardDao.kt` - Slot-based card management
+   - ✅ Query: Get deck with all cards and details
 
-3. **Repository**
-   - `DeckRepository.kt` - Business logic
-   - Add/remove cards from deck
-   - Duplicate deck
-   - Validate deck (future: deck rules)
+3. **Repository** ✅
+   - ✅ `DeckRepository.kt` - All deck operations
+   - ✅ setEntrance, setCompetitor, setDeckCard, addAlternate
+   - ✅ removeCardFromDeck
+   - ✅ Database migration v2→v3
 
-#### 3.2: Deckbuilding UI
-1. **Deck List Screen** (`app/src/main/kotlin/com/srg/inventory/ui/deck/`)
-   - `DeckListScreen.kt` - Show all decks
-   - Create new deck dialog
-   - Delete deck confirmation
-   - Click to edit deck
+#### 3.2: Deckbuilding UI ✅ COMPLETED
+1. **Deck Folders Screen** ✅
+   - ✅ `DecksScreen.kt` - Shows deck folders (Singles, Tornado, Trios, Tag)
+   - ✅ Folder icons per type
+   - ✅ Deck count per folder
+   - ✅ Create/delete custom folders
 
-2. **Deck Editor Screen**
-   - `DeckEditorScreen.kt` - Main deckbuilding interface
-   - Top: Deck name, description, card count
-   - Search bar to add cards
-   - Card list with quantities
-   - Remove cards, adjust quantities
+2. **Deck List Screen** ✅
+   - ✅ `DeckListScreen.kt` - Show decks in folder
+   - ✅ Deck name, card count, spectacle type badge
+   - ✅ Create/delete decks
+   - ✅ Navigate to deck editor
 
-3. **Smart Features**
-   - Auto-suggest linked cards (from card data)
-   - "Add playset" button (add 4 copies)
-   - Quick filters: "Show only cards I own"
-   - Visual deck breakdown (by type, color, etc.)
+3. **Deck Editor Screen** ✅
+   - ✅ `DeckEditorScreen.kt` - Full slot-based editor
+   - ✅ Entrance card slot (1)
+   - ✅ Competitor card slot (1)
+   - ✅ Deck cards 1-30 (finishes are 28-30)
+   - ✅ Alternates section (unlimited)
+   - ✅ Spectacle type selector (Newman/Valiant)
+   - ✅ Card picker with smart filtering
 
-#### 3.3: Support Rules for Faster Deck Building
-1. **Linked Card Suggestions**
-   - When adding a card, suggest linked cards
-   - "Players who added X also added Y"
-   - Quick-add button for suggestions
+4. **Smart Features** ✅
+   - ✅ Filter by slot type (Entrance → EntranceCard only)
+   - ✅ Filter competitors by folder (Singles → SingleCompetitorCard, etc.)
+   - ✅ Filter deck cards by deck_card_number (slot #1 → cards with deck_card_number=1)
 
-2. **Deck Templates**
-   - Pre-built starter decks
-   - "Clone and customize" feature
+#### 3.3: Export/Import ✅ COMPLETED
+1. **CSV Export/Import** ✅
+   - ✅ Export deck to CSV (Slot Type, Slot Number, Card Name)
+   - ✅ Import deck from CSV file
+   - ✅ FileProvider for sharing
 
-3. **Batch Operations**
-   - Add multiple cards at once
-   - Import from text list
+2. **Shared List API Integration** ✅
+   - ✅ Share deck to get-diced.com API (`POST /api/shared-lists`)
+   - ✅ Copy shareable link to clipboard
+   - ✅ Import deck from shareable URL
+   - ✅ Cards imported as alternates
 
-#### 3.4: Export/Import via get-diced.com
-1. **Export Deck**
-   - `POST /api/decks/export` - Upload deck to get-diced.com
-   - Returns shareable link
-   - Share via Android share sheet
-
-2. **Import Deck**
-   - `GET /api/decks/{share_id}` - Download deck from link
-   - Parse and import to local database
-   - Handle missing cards gracefully
-
-3. **Deck Sync** (Optional Future)
-   - Sync decks across devices
-   - Cloud backup
-
-**Estimated Time**: 4-5 hours
+**Actual Time**: ~3 hours
 
 ---
 
@@ -289,22 +280,28 @@ Camera scanning is unreliable due to mismatch between phone photos and high-qual
 7. ✅ Updated convert_images.py with mobile output
 8. ✅ Updated bundle_images.sh for mobile-only bundling
 
-### 🔜 Session 6: Folder Enhancements (NEXT)
-1. 🔜 Add sorting options for cards in folders (name, type, deck #, quantity, date)
-2. 🔜 Add search within collection folders
-3. 🔜 Implement bulk operations (add multiple cards)
+### ✅ Session 6: Folder Enhancements (COMPLETED - Nov 20, 2025)
+1. ✅ Add sorting by card type with custom order (Entrance → Competitor → MainDeck → Spectacle → CrowdMeter)
+2. ✅ CSV export functionality (download icon, FileProvider)
+3. ✅ CSV import functionality (upload icon, supports app + website format)
+4. ✅ App icon fix (removed adaptive icon overrides)
+5. ✅ Clickable card rows (removed magnifying lens)
+6. ✅ Added getCardByName to data layer for import matching
 
-### 🔜 Session 7: Deckbuilding
-1. 💾 Create deck data layer (Deck, DeckCard entities)
-2. 📝 Build deck list screen
-3. ✏️ Build deck editor with search
-4. 🔗 Implement linked card suggestions (related_cards, related_finishes)
-5. 📤 Export/import via shared lists API
+### ✅ Session 7: Deckbuilding (COMPLETED - Nov 20, 2025)
+1. ✅ Created deck data layer (DeckFolder, Deck, DeckCard entities)
+2. ✅ Built deck folders screen (Singles, Tornado, Trios, Tag)
+3. ✅ Built deck list screen
+4. ✅ Built full deck editor with slot-based system
+5. ✅ Smart card filtering (by slot type, folder type, deck_card_number)
+6. ✅ CSV export/import for decks
+7. ✅ Shared list API integration (share to web, import from URL)
+8. ✅ Database migration v2→v3
 
 ### 🔜 Session 8: Polish & Optimization
-1. 🖼️ Full image integration and optimization
-2. 🎨 UI/UX polish and animations
-3. ⚡ Performance optimizations
+1. 🖼️ UI/UX polish and animations
+2. ⚡ Performance optimizations
+3. 🧹 Clean up legacy files
 
 ---
 
@@ -439,56 +436,46 @@ app/src/main/kotlin/com/srg/inventory/
 - **Offline-First**: Manual sync with progress tracking
 - **Bundled Database**: ✨ NEW - App ships with 3,922 cards pre-loaded (1.6MB database in assets)
 
-### Latest Session: Image Integration & UI Polish (Nov 19, 2025 - Part 3)
+### Latest Session: Deckbuilding (Nov 20, 2025)
 #### What Was Completed
-1. **Mobile-Optimized Images** - Full integration complete
-   - Created mobile variant at quality 75 (158MB total, down from 259MB fullsize)
-   - APK size: 167MB (optimized for modern phones)
-   - Updated convert_images.py with --mobile-quality option
-   - Updated bundle_images.sh to use mobile images only
+1. **Full Deckbuilding Feature** - Complete slot-based deck editor
+   - DeckFolder, Deck, DeckCard entities with migration v2→v3
+   - Deck folders screen (Singles, Tornado, Trios, Tag)
+   - Deck list screen with metadata
+   - Full deck editor with all slots
 
-2. **Images in All Detail Dialogs**
-   - CardSearchScreen (Viewer) - Full card image with stats
-   - AddCardToFolderScreen - Card image when adding
-   - FolderDetailScreen - Full details with image, stats, rules, errata
-   - CollectionScreen - Card image in edit dialog
+2. **Slot-Based Card System**
+   - Entrance card slot (1)
+   - Competitor card slot (1)
+   - Deck cards 1-30 (finishes are 28-30)
+   - Alternates section (unlimited)
+   - Spectacle type selector (Newman/Valiant)
 
-3. **Renamed Search to Viewer**
-   - Bottom nav now shows "Viewer" instead of "Search"
-   - Removed "Add to Collection" button
-   - Viewer is now read-only for browsing cards
+3. **Smart Card Filtering**
+   - Entrance → EntranceCard only
+   - Competitor → Filtered by folder type (Singles→SingleCompetitorCard, etc.)
+   - Deck slots → Filtered by deck_card_number (slot #1 shows only cards with deck_card_number=1)
 
-4. **New Edit Quantity Dialog**
-   - +/- buttons to increment/decrement quantity
-   - Large centered quantity display
-   - Delete button to remove from folder
-   - Save/Cancel buttons
+4. **CSV Export/Import**
+   - Export deck to CSV (Slot Type, Slot Number, Card Name)
+   - Import deck from CSV file
+   - FileProvider for sharing
 
-5. **Separate Card Actions**
-   - 🔍 Search icon → View full card details
-   - ✏️ Edit icon → Edit quantity dialog
-   - Clear separation of viewing vs editing
-
-#### Image Status
-- ✅ 3,481 mobile-optimized images bundled (158MB)
-- ✅ Images in all detail dialogs
-- ✅ Coil library with asset loading
-- ✅ ImageUtils using mobile assets
-- ✅ convert_images.py produces mobile variant
+5. **Shared List API Integration**
+   - Share deck to get-diced.com API
+   - Copy shareable link to clipboard
+   - Import deck from shareable URL
+   - Cards imported as alternates
 
 ### Next Steps 🔜
-**Immediate (Next Session):**
-1. **Folder Sorting** - Add sort options (name, type, deck #, quantity, date)
-2. **Folder Search** - Search within specific collection folders
-3. **Bulk Operations** - Add multiple cards at once
-
 **High Priority:**
-4. **Deckbuilding** - Create deck data layer and UI
-5. **Shared Lists** - Import/export via get-diced.com API
+1. **Search within folders** - Filter cards in collection folders
+2. **Deck validation** - Check deck completeness and rules
 
 **Future:**
-6. **UI Polish** - Animations, transitions, performance
-7. **Versioned Bundles** - Server-side versioning for DB + images
+3. **UI Polish** - Animations, transitions, performance
+4. **Versioned Bundles** - Server-side versioning for DB + images
+5. **Clean up legacy files** - Remove unused ManualAddScreen, CollectionScreen, CardViewModel
 
 ### Known Issues 🐛
 - Legacy UI files (ManualAddScreen, CollectionScreen, CardViewModel) can be deleted once thoroughly tested
