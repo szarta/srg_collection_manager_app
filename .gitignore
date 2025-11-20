@@ -31,6 +31,7 @@ captures/
 # Keystore files
 *.jks
 *.keystore
+keystore.properties
 
 # Working database files (bundled version is in app/src/main/assets/)
 /card_hashes.db
