@@ -279,11 +279,15 @@ Camera scanning is unreliable due to mismatch between phone photos and high-qual
 9. ✅ Create bundle_images.sh script with IMAGE_SOURCE_DIR support
 10. ✅ Show deck card number (#) prominently for MainDeck cards
 
-### 🚧 Session 5: Image Integration (IN PROGRESS)
-1. 🚧 Integrate images into card list UI components
-2. 🚧 Add images to card detail dialogs
-3. 🔜 Implement server image sync for missing images
-4. 🔜 Add image cache management
+### ✅ Session 5: Image Integration (COMPLETED - Nov 19, 2025)
+1. ✅ Mobile-optimized images (quality 75, 158MB total)
+2. ✅ Images in all card detail dialogs
+3. ✅ Full card details view (image, stats, rules, errata)
+4. ✅ Renamed Search to Viewer (read-only browsing)
+5. ✅ Edit quantity dialog with +/- buttons and delete
+6. ✅ Separate view and edit actions in folder cards
+7. ✅ Updated convert_images.py with mobile output
+8. ✅ Updated bundle_images.sh for mobile-only bundling
 
 ### 🔜 Session 6: Folder Enhancements (NEXT)
 1. 🔜 Add sorting options for cards in folders (name, type, deck #, quantity, date)
@@ -435,75 +439,59 @@ app/src/main/kotlin/com/srg/inventory/
 - **Offline-First**: Manual sync with progress tracking
 - **Bundled Database**: ✨ NEW - App ships with 3,922 cards pre-loaded (1.6MB database in assets)
 
-### Latest Session: Navigation Restructure & Image Infrastructure (Nov 19, 2025 - Part 2)
+### Latest Session: Image Integration & UI Polish (Nov 19, 2025 - Part 3)
 #### What Was Completed
-1. **4-Tab Bottom Navigation** - Created clean tab structure
-   - Collection tab (FoldersScreen)
-   - Decks tab (DecksScreen - placeholder)
-   - Card Search tab (CardSearchScreen - standalone browsing)
-   - Settings tab (SettingsScreen - sync & config)
-   - Updated MainScreen.kt with NavigationBar
-   - Bottom nav hides on detail screens
+1. **Mobile-Optimized Images** - Full integration complete
+   - Created mobile variant at quality 75 (158MB total, down from 259MB fullsize)
+   - APK size: 167MB (optimized for modern phones)
+   - Updated convert_images.py with --mobile-quality option
+   - Updated bundle_images.sh to use mobile images only
 
-2. **Settings Screen** - Centralized configuration
-   - Database statistics (card count, last sync time)
-   - Manual sync button with progress
-   - About section
-   - Info card explaining bundled database strategy
+2. **Images in All Detail Dialogs**
+   - CardSearchScreen (Viewer) - Full card image with stats
+   - AddCardToFolderScreen - Card image when adding
+   - FolderDetailScreen - Full details with image, stats, rules, errata
+   - CollectionScreen - Card image in edit dialog
 
-3. **Card Search Screen** - Standalone browsing
-   - Full search and filter capabilities
-   - View card details before adding to collection
-   - "Add to Collection" button (folder selector - future)
-   - Same advanced filters as folder add screen
+3. **Renamed Search to Viewer**
+   - Bottom nav now shows "Viewer" instead of "Search"
+   - Removed "Add to Collection" button
+   - Viewer is now read-only for browsing cards
 
-4. **Image Loading Infrastructure**
-   - Added Coil 2.5.0 for async image loading
-   - Created ImageUtils.kt helper
-   - Bundled 3,481 thumbnail images (34MB)
-   - Created bundle_images.sh script
-   - Image loading strategy: Bundled → Cached → Server → Placeholder
+4. **New Edit Quantity Dialog**
+   - +/- buttons to increment/decrement quantity
+   - Large centered quantity display
+   - Delete button to remove from folder
+   - Save/Cancel buttons
 
-5. **UI Improvements**
-   - Deck card number (#) displayed prominently for MainDeck cards
-   - App icon updated to match get-diced.com (dice icon)
-   - Removed sync button from FoldersScreen
-
-6. **Database Schema Fix**
-   - Fixed schema mismatch in bundled database
-   - Removed DEFAULT clauses (Room doesn't expect them)
-   - Removed indexes (Room creates automatically)
-   - Added is_custom column to user_cards table
+5. **Separate Card Actions**
+   - 🔍 Search icon → View full card details
+   - ✏️ Edit icon → Edit quantity dialog
+   - Clear separation of viewing vs editing
 
 #### Image Status
-- ✅ 3,481 thumbnails bundled (34MB, WebP format)
-- ✅ Coil library integrated
-- ✅ ImageUtils helper created
-- ✅ bundle_images.sh script with IMAGE_SOURCE_DIR support
-- 🚧 UI integration pending
-- 🔜 Server image sync
+- ✅ 3,481 mobile-optimized images bundled (158MB)
+- ✅ Images in all detail dialogs
+- ✅ Coil library with asset loading
+- ✅ ImageUtils using mobile assets
+- ✅ convert_images.py produces mobile variant
 
 ### Next Steps 🔜
 **Immediate (Next Session):**
-1. **Integrate Images into UI** - Add AsyncImage to card lists and dialogs
-2. **Image Sync from Server** - Background task to download missing images
-3. **Folder Sorting** - Add sort options (name, type, deck #, quantity, date)
-4. **Folder Search** - Search within specific collection folders
+1. **Folder Sorting** - Add sort options (name, type, deck #, quantity, date)
+2. **Folder Search** - Search within specific collection folders
+3. **Bulk Operations** - Add multiple cards at once
 
 **High Priority:**
-5. **Versioned Database Bundles** - Server-side versioning for DB + images bundles
-   - Host versioned bundles on get-diced.com
-   - App checks bundle version and downloads updates
-   - Supports incremental updates (~10 new cards/month)
+4. **Deckbuilding** - Create deck data layer and UI
+5. **Shared Lists** - Import/export via get-diced.com API
 
 **Future:**
-6. **Deckbuilding**: Create deck data layer and UI
-7. **Shared Lists**: Import/export via get-diced.com API
-8. **UI Polish**: Animations, transitions, performance
+6. **UI Polish** - Animations, transitions, performance
+7. **Versioned Bundles** - Server-side versioning for DB + images
 
 ### Known Issues 🐛
 - Legacy UI files (ManualAddScreen, CollectionScreen, CardViewModel) can be deleted once thoroughly tested
-- Images not yet integrated into UI (infrastructure ready, AsyncImage components needed)
 
 ### Architecture Highlights 🏗️
 - **Folder-based collections** allow same card in multiple folders with independent quantities

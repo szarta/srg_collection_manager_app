@@ -38,3 +38,4 @@ captures/
 # Card images (bundled from website, don't check in)
 app/src/main/assets/thumbnails/
 app/src/main/assets/fullsize/
+app/src/main/assets/mobile/

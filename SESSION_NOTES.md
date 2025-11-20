@@ -1,3 +1,52 @@
+# Session Notes - Nov 19, 2025 (Part 3)
+
+## What Was Completed This Session ✅
+
+### Image Integration (COMPLETED)
+**Goal:** Add card images to detail dialogs with mobile-optimized compression
+
+**What was done:**
+1. **Mobile-Optimized Images**
+   - Created mobile variant at quality 75 (158MB total)
+   - Updated `convert_images.py` to produce mobile output
+   - Updated `bundle_images.sh` to use mobile images only
+   - APK size: 167MB (down from 295MB with fullsize)
+
+2. **Images in Detail Dialogs**
+   - CardSearchScreen (Viewer) - Full card details with image
+   - AddCardToFolderScreen - Card image when adding to folder
+   - FolderDetailScreen - Full card details with image, stats, rules
+   - CollectionScreen - Card image in edit dialog
+
+3. **ImageUtils Updated**
+   - Changed to always use mobile assets
+   - Path: `mobile/{first2}/{uuid}.webp`
+   - Simplified loading strategy (no thumbnails)
+
+### UI/UX Improvements (COMPLETED)
+1. **Renamed Search to Viewer**
+   - Bottom nav now shows "Viewer" instead of "Search"
+   - Removed "Add to Collection" button from Viewer
+   - Viewer is now purely for browsing and viewing cards
+
+2. **New Edit Quantity Dialog**
+   - +/- buttons to increment/decrement quantity
+   - Large quantity display
+   - Delete button to remove card from folder
+   - Cleaner UX than text field
+
+3. **Separate Card Actions in Folders**
+   - 🔍 Search icon → View full card details
+   - ✏️ Edit icon → Edit quantity dialog
+   - Clear separation of viewing vs editing
+
+4. **Full Card Details in Collection**
+   - Clicking a card in folder shows CardDetailDialog
+   - Shows image, stats (for competitors), rules, errata
+   - Same quality as Viewer detail view
+
+---
+
 # Session Notes - Nov 19, 2025 (Part 2)
 
 ## What Was Completed This Session ✅
