@@ -1,163 +1,246 @@
 package com.srg.inventory.api
 
+import android.content.Context
+import android.database.sqlite.SQLiteDatabase
 import android.util.Log
-import com.srg.inventory.data.CardDao
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
+import okhttp3.OkHttpClient
+import okhttp3.Request
+import java.io.File
+import java.io.FileOutputStream
 
 /**
- * Repository for syncing cards from get-diced.com API to local database
+ * Repository for syncing card database from server.
+ * Compares local database hash with server manifest and downloads/merges when needed.
+ * Preserves user data (folders, folder_cards, decks, deck_cards) while replacing card data.
  */
-class CardSyncRepository(
-    private val api: GetDicedApi,
-    private val cardDao: CardDao
-) {
+class CardSyncRepository(private val context: Context) {
+
+    private val api = RetrofitClient.api
+    private val httpClient = OkHttpClient()
+
     companion object {
         private const val TAG = "CardSyncRepository"
-        private const val BATCH_SIZE = 100
+        private const val MANIFEST_PREF = "card_sync_prefs"
+        private const val KEY_LAST_HASH = "last_db_hash"
+        private const val KEY_LAST_SYNC = "last_sync_time"
+    }
+
+    private val prefs = context.getSharedPreferences(MANIFEST_PREF, Context.MODE_PRIVATE)
+
+    /**
+     * Get the stored hash of the last synced database
+     */
+    private fun getLastSyncedHash(): String? {
+        return prefs.getString(KEY_LAST_HASH, null)
     }
 
     /**
-     * Sync state for tracking progress
+     * Save the hash after successful sync
      */
-    data class SyncProgress(
-        val currentBatch: Int,
-        val totalFetched: Int,
-        val isComplete: Boolean,
-        val error: String? = null
-    )
-
-    /**
-     * Sync all cards from the website API to local database
-     * Returns SyncProgress with final state
-     */
-    suspend fun syncAllCards(): Result<SyncProgress> = withContext(Dispatchers.IO) {
-        try {
-            var offset = 0
-            var totalFetched = 0
-            var batchNumber = 1
-
-            Log.d(TAG, "Starting card sync from get-diced.com")
-
-            do {
-                Log.d(TAG, "Fetching batch $batchNumber (offset: $offset)")
-
-                val response = api.searchCards(
-                    limit = BATCH_SIZE,
-                    offset = offset
-                )
-
-                val cardsToInsert = response.items.toEntities()
-
-                // Insert batch into database
-                cardDao.insertCards(cardsToInsert)
-
-                totalFetched += response.items.size
-                offset += BATCH_SIZE
-                batchNumber++
-
-                Log.d(TAG, "Synced $totalFetched / ${response.totalCount} cards")
-
-            } while (response.items.size == BATCH_SIZE && totalFetched < response.totalCount)
-
-            val finalProgress = SyncProgress(
-                currentBatch = batchNumber - 1,
-                totalFetched = totalFetched,
-                isComplete = true
-            )
-
-            Log.d(TAG, "Card sync completed. Total cards: $totalFetched")
-            Result.success(finalProgress)
-
-        } catch (e: Exception) {
-            Log.e(TAG, "Error syncing cards: ${e.message}", e)
-            Result.failure(e)
-        }
-    }
-
-    /**
-     * Sync specific cards by UUIDs (for updating existing cards or fetching related cards)
-     */
-    suspend fun syncCardsByUuids(uuids: List<String>): Result<Int> = withContext(Dispatchers.IO) {
-        try {
-            if (uuids.isEmpty()) {
-                return@withContext Result.success(0)
-            }
-
-            val response = api.getCardsByUuids(CardBatchRequest(uuids))
-            val cards = response.rows.toEntities()
-
-            cardDao.insertCards(cards)
-
-            if (response.missing.isNotEmpty()) {
-                Log.w(TAG, "Missing cards: ${response.missing}")
-            }
-
-            Result.success(cards.size)
-
-        } catch (e: Exception) {
-            Log.e(TAG, "Error syncing cards by UUIDs: ${e.message}", e)
-            Result.failure(e)
-        }
-    }
-
-    /**
-     * Get a single card from API and save to database
-     */
-    suspend fun syncCardByUuid(uuid: String): Result<Unit> = withContext(Dispatchers.IO) {
-        try {
-            val cardDto = api.getCard(uuid)
-            val card = cardDto.toEntity()
-            cardDao.insertCard(card)
-
-            Result.success(Unit)
-
-        } catch (e: Exception) {
-            Log.e(TAG, "Error syncing card $uuid: ${e.message}", e)
-            Result.failure(e)
-        }
-    }
-
-    /**
-     * Check if sync is needed (e.g., more than 7 days since last sync)
-     */
-    suspend fun isSyncNeeded(maxAgeDays: Int = 7): Boolean = withContext(Dispatchers.IO) {
-        try {
-            val lastSyncTime = cardDao.getLastSyncTime() ?: return@withContext true
-            val currentTime = System.currentTimeMillis()
-            val daysSinceSync = (currentTime - lastSyncTime) / (1000 * 60 * 60 * 24)
-
-            daysSinceSync >= maxAgeDays
-
-        } catch (e: Exception) {
-            Log.e(TAG, "Error checking sync status: ${e.message}", e)
-            true // If error, assume sync is needed
-        }
+    private fun saveLastSyncedHash(hash: String) {
+        prefs.edit()
+            .putString(KEY_LAST_HASH, hash)
+            .putLong(KEY_LAST_SYNC, System.currentTimeMillis())
+            .apply()
     }
 
     /**
      * Get time since last sync in human-readable format
      */
-    suspend fun getLastSyncTimeString(): String = withContext(Dispatchers.IO) {
-        try {
-            val lastSyncTime = cardDao.getLastSyncTime() ?: return@withContext "Never"
-            val currentTime = System.currentTimeMillis()
-            val diffMs = currentTime - lastSyncTime
+    fun getLastSyncTimeString(): String {
+        val lastSyncTime = prefs.getLong(KEY_LAST_SYNC, 0)
+        if (lastSyncTime == 0L) return "Never"
 
-            val days = diffMs / (1000 * 60 * 60 * 24)
-            val hours = (diffMs / (1000 * 60 * 60)) % 24
-            val minutes = (diffMs / (1000 * 60)) % 60
+        val currentTime = System.currentTimeMillis()
+        val diffMs = currentTime - lastSyncTime
 
-            when {
-                days > 0 -> "$days day${if (days > 1) "s" else ""} ago"
-                hours > 0 -> "$hours hour${if (hours > 1) "s" else ""} ago"
-                minutes > 0 -> "$minutes minute${if (minutes > 1) "s" else ""} ago"
-                else -> "Just now"
-            }
+        val days = diffMs / (1000 * 60 * 60 * 24)
+        val hours = (diffMs / (1000 * 60 * 60)) % 24
+        val minutes = (diffMs / (1000 * 60)) % 60
 
-        } catch (e: Exception) {
-            Log.e(TAG, "Error getting last sync time: ${e.message}", e)
-            "Unknown"
+        return when {
+            days > 0 -> "$days day${if (days > 1) "s" else ""} ago"
+            hours > 0 -> "$hours hour${if (hours > 1) "s" else ""} ago"
+            minutes > 0 -> "$minutes minute${if (minutes > 1) "s" else ""} ago"
+            else -> "Just now"
         }
     }
+
+    /**
+     * Check if sync is needed by comparing hashes
+     * Returns: Pair<needsSync, serverCardCount>
+     */
+    suspend fun checkSyncNeeded(): Result<Pair<Boolean, Int>> = withContext(Dispatchers.IO) {
+        try {
+            val serverManifest = api.getCardsManifest()
+            val localHash = getLastSyncedHash()
+
+            val needsSync = localHash == null || localHash != serverManifest.hash
+            Result.success(Pair(needsSync, serverManifest.card_count))
+        } catch (e: Exception) {
+            Log.e(TAG, "Error checking sync status: ${e.message}")
+            Result.failure(e)
+        }
+    }
+
+    /**
+     * Sync card database from server.
+     * Downloads new database and merges card data while preserving user data.
+     */
+    suspend fun syncDatabase(
+        onProgress: (status: String) -> Unit = {}
+    ): Result<SyncResult> = withContext(Dispatchers.IO) {
+        try {
+            Log.d(TAG, "Starting card database sync...")
+            onProgress("Checking for updates...")
+
+            // Fetch server manifest
+            val serverManifest = api.getCardsManifest()
+            val localHash = getLastSyncedHash()
+
+            if (localHash == serverManifest.hash) {
+                Log.d(TAG, "Database already up to date")
+                return@withContext Result.success(SyncResult(
+                    success = true,
+                    cardsUpdated = 0,
+                    alreadyUpToDate = true
+                ))
+            }
+
+            onProgress("Downloading database...")
+            Log.d(TAG, "Downloading new database (${serverManifest.card_count} cards, ${serverManifest.size_bytes} bytes)")
+
+            // Download database to temp file
+            val tempDbFile = File(context.cacheDir, "temp_cards.db")
+            downloadDatabase(tempDbFile)
+
+            onProgress("Merging card data...")
+            Log.d(TAG, "Merging card data...")
+
+            // Merge the downloaded database into the user database
+            val cardsUpdated = mergeCardData(tempDbFile)
+
+            // Clean up temp file
+            tempDbFile.delete()
+
+            // Save the hash on success
+            saveLastSyncedHash(serverManifest.hash)
+
+            Log.d(TAG, "Sync complete. Updated $cardsUpdated cards")
+            Result.success(SyncResult(
+                success = true,
+                cardsUpdated = cardsUpdated,
+                alreadyUpToDate = false
+            ))
+
+        } catch (e: Exception) {
+            Log.e(TAG, "Error syncing database: ${e.message}", e)
+            Result.failure(e)
+        }
+    }
+
+    /**
+     * Download database file from server
+     */
+    private suspend fun downloadDatabase(outputFile: File) = withContext(Dispatchers.IO) {
+        val url = "${GetDicedApi.BASE_URL}api/cards/database"
+        val request = Request.Builder().url(url).build()
+
+        httpClient.newCall(request).execute().use { response ->
+            if (!response.isSuccessful) {
+                throw Exception("Failed to download database: ${response.code}")
+            }
+
+            response.body?.byteStream()?.use { input ->
+                FileOutputStream(outputFile).use { output ->
+                    input.copyTo(output)
+                }
+            }
+        }
+    }
+
+    /**
+     * Merge card data from downloaded database into user database.
+     * Preserves user data (folders, folder_cards, decks, deck_cards).
+     * Returns number of cards updated.
+     */
+    private fun mergeCardData(sourceDbFile: File): Int {
+        val userDbPath = context.getDatabasePath("user_cards.db").absolutePath
+
+        // Open both databases
+        val sourceDb = SQLiteDatabase.openDatabase(sourceDbFile.absolutePath, null, SQLiteDatabase.OPEN_READONLY)
+        val userDb = SQLiteDatabase.openDatabase(userDbPath, null, SQLiteDatabase.OPEN_READWRITE)
+
+        var cardsUpdated = 0
+
+        try {
+            userDb.beginTransaction()
+
+            // Clear existing card data (but preserve user data)
+            userDb.execSQL("DELETE FROM card_related_finishes")
+            userDb.execSQL("DELETE FROM card_related_cards")
+            userDb.execSQL("DELETE FROM cards")
+
+            // Copy cards from source database
+            val cardsCursor = sourceDb.rawQuery("SELECT * FROM cards", null)
+            cardsCursor.use { cursor ->
+                while (cursor.moveToNext()) {
+                    val values = android.content.ContentValues()
+                    for (i in 0 until cursor.columnCount) {
+                        val name = cursor.getColumnName(i)
+                        when (cursor.getType(i)) {
+                            android.database.Cursor.FIELD_TYPE_NULL -> values.putNull(name)
+                            android.database.Cursor.FIELD_TYPE_INTEGER -> values.put(name, cursor.getLong(i))
+                            android.database.Cursor.FIELD_TYPE_FLOAT -> values.put(name, cursor.getDouble(i))
+                            android.database.Cursor.FIELD_TYPE_STRING -> values.put(name, cursor.getString(i))
+                            android.database.Cursor.FIELD_TYPE_BLOB -> values.put(name, cursor.getBlob(i))
+                        }
+                    }
+                    userDb.insert("cards", null, values)
+                    cardsUpdated++
+                }
+            }
+
+            // Copy related finishes
+            val finishesCursor = sourceDb.rawQuery("SELECT * FROM card_related_finishes", null)
+            finishesCursor.use { cursor ->
+                while (cursor.moveToNext()) {
+                    val values = android.content.ContentValues()
+                    values.put("card_uuid", cursor.getString(cursor.getColumnIndexOrThrow("card_uuid")))
+                    values.put("finish_uuid", cursor.getString(cursor.getColumnIndexOrThrow("finish_uuid")))
+                    userDb.insert("card_related_finishes", null, values)
+                }
+            }
+
+            // Copy related cards
+            val relatedCursor = sourceDb.rawQuery("SELECT * FROM card_related_cards", null)
+            relatedCursor.use { cursor ->
+                while (cursor.moveToNext()) {
+                    val values = android.content.ContentValues()
+                    values.put("card_uuid", cursor.getString(cursor.getColumnIndexOrThrow("card_uuid")))
+                    values.put("related_uuid", cursor.getString(cursor.getColumnIndexOrThrow("related_uuid")))
+                    userDb.insert("card_related_cards", null, values)
+                }
+            }
+
+            userDb.setTransactionSuccessful()
+        } finally {
+            userDb.endTransaction()
+            userDb.close()
+            sourceDb.close()
+        }
+
+        return cardsUpdated
+    }
 }
+
+/**
+ * Result of a database sync operation
+ */
+data class SyncResult(
+    val success: Boolean,
+    val cardsUpdated: Int,
+    val alreadyUpToDate: Boolean = false
+)

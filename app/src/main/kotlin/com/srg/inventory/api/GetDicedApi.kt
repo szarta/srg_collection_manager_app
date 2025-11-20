@@ -42,10 +42,27 @@ interface GetDicedApi {
     @GET("api/images/manifest")
     suspend fun getImageManifest(): ImageManifest
 
+    @GET("api/cards/manifest")
+    suspend fun getCardsManifest(): CardsManifest
+
     companion object {
         const val BASE_URL = "https://get-diced.com/"
     }
 }
+
+/**
+ * Cards database manifest for sync
+ */
+data class CardsManifest(
+    val version: Int,
+    val generated: String,
+    val filename: String,
+    val hash: String,
+    val size_bytes: Long,
+    val card_count: Int,
+    val related_finishes_count: Int,
+    val related_cards_count: Int
+)
 
 /**
  * Image manifest for sync

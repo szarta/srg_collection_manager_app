@@ -38,9 +38,11 @@ class Converters {
         FolderCard::class,
         DeckFolder::class,
         Deck::class,
-        DeckCard::class
+        DeckCard::class,
+        CardRelatedFinish::class,
+        CardRelatedCard::class
     ],
-    version = 3,
+    version = 4,
     exportSchema = false
 )
 @androidx.room.TypeConverters(Converters::class)
@@ -218,6 +220,32 @@ abstract class UserCardDatabase : RoomDatabase() {
             }
         }
 
+        private val MIGRATION_3_4 = object : Migration(3, 4) {
+            override fun migrate(database: SupportSQLiteDatabase) {
+                // Create card_related_finishes table
+                database.execSQL("""
+                    CREATE TABLE IF NOT EXISTS card_related_finishes (
+                        card_uuid TEXT NOT NULL,
+                        finish_uuid TEXT NOT NULL,
+                        PRIMARY KEY (card_uuid, finish_uuid),
+                        FOREIGN KEY (card_uuid) REFERENCES cards(db_uuid) ON DELETE CASCADE,
+                        FOREIGN KEY (finish_uuid) REFERENCES cards(db_uuid) ON DELETE CASCADE
+                    )
+                """)
+
+                // Create card_related_cards table
+                database.execSQL("""
+                    CREATE TABLE IF NOT EXISTS card_related_cards (
+                        card_uuid TEXT NOT NULL,
+                        related_uuid TEXT NOT NULL,
+                        PRIMARY KEY (card_uuid, related_uuid),
+                        FOREIGN KEY (card_uuid) REFERENCES cards(db_uuid) ON DELETE CASCADE,
+                        FOREIGN KEY (related_uuid) REFERENCES cards(db_uuid) ON DELETE CASCADE
+                    )
+                """)
+            }
+        }
+
         fun getDatabase(context: Context): UserCardDatabase {
             return INSTANCE ?: synchronized(this) {
                 val instance = Room.databaseBuilder(
@@ -226,7 +254,7 @@ abstract class UserCardDatabase : RoomDatabase() {
                     "user_cards.db"
                 )
                 .createFromAsset("cards_initial.db")  // Pre-populate with bundled cards (3922 cards + default folders)
-                .addMigrations(MIGRATION_1_2, MIGRATION_2_3)
+                .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4)
                 .fallbackToDestructiveMigration()
                 .build()
 

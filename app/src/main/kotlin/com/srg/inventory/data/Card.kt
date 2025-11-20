@@ -93,3 +93,69 @@ data class Card(
     val tagList: List<String>
         get() = tags?.split(",")?.map { it.trim() } ?: emptyList()
 }
+
+/**
+ * Entity for card finish relationships (e.g., foil variants)
+ */
+@Entity(
+    tableName = "card_related_finishes",
+    primaryKeys = ["card_uuid", "finish_uuid"],
+    foreignKeys = [
+        androidx.room.ForeignKey(
+            entity = Card::class,
+            parentColumns = ["db_uuid"],
+            childColumns = ["card_uuid"],
+            onDelete = androidx.room.ForeignKey.CASCADE
+        ),
+        androidx.room.ForeignKey(
+            entity = Card::class,
+            parentColumns = ["db_uuid"],
+            childColumns = ["finish_uuid"],
+            onDelete = androidx.room.ForeignKey.CASCADE
+        )
+    ],
+    indices = [
+        androidx.room.Index("card_uuid"),
+        androidx.room.Index("finish_uuid")
+    ]
+)
+data class CardRelatedFinish(
+    @ColumnInfo(name = "card_uuid")
+    val cardUuid: String,
+
+    @ColumnInfo(name = "finish_uuid")
+    val finishUuid: String
+)
+
+/**
+ * Entity for related card relationships
+ */
+@Entity(
+    tableName = "card_related_cards",
+    primaryKeys = ["card_uuid", "related_uuid"],
+    foreignKeys = [
+        androidx.room.ForeignKey(
+            entity = Card::class,
+            parentColumns = ["db_uuid"],
+            childColumns = ["card_uuid"],
+            onDelete = androidx.room.ForeignKey.CASCADE
+        ),
+        androidx.room.ForeignKey(
+            entity = Card::class,
+            parentColumns = ["db_uuid"],
+            childColumns = ["related_uuid"],
+            onDelete = androidx.room.ForeignKey.CASCADE
+        )
+    ],
+    indices = [
+        androidx.room.Index("card_uuid"),
+        androidx.room.Index("related_uuid")
+    ]
+)
+data class CardRelatedCard(
+    @ColumnInfo(name = "card_uuid")
+    val cardUuid: String,
+
+    @ColumnInfo(name = "related_uuid")
+    val relatedUuid: String
+)

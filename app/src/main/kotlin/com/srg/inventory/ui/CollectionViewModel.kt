@@ -4,9 +4,7 @@ import android.app.Application
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.srg.inventory.api.CardSyncRepository
-import com.srg.inventory.api.GetDicedApi
 import com.srg.inventory.api.ImageSyncRepository
-import com.srg.inventory.api.RetrofitClient
 import com.srg.inventory.data.*
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.*
@@ -24,10 +22,7 @@ class CollectionViewModel(application: Application) : AndroidViewModel(applicati
         database.cardDao(),
         database.folderCardDao()
     )
-    private val syncRepository = CardSyncRepository(
-        RetrofitClient.api,
-        database.cardDao()
-    )
+    private val cardSyncRepository = CardSyncRepository(application)
     private val imageSyncRepository = ImageSyncRepository(application)
 
     // ==================== UI State ====================
@@ -147,8 +142,8 @@ class CollectionViewModel(application: Application) : AndroidViewModel(applicati
     private val _isSyncing = MutableStateFlow(false)
     val isSyncing: StateFlow<Boolean> = _isSyncing.asStateFlow()
 
-    private val _syncProgress = MutableStateFlow<CardSyncRepository.SyncProgress?>(null)
-    val syncProgress: StateFlow<CardSyncRepository.SyncProgress?> = _syncProgress.asStateFlow()
+    private val _syncStatus = MutableStateFlow<String?>(null)
+    val syncStatus: StateFlow<String?> = _syncStatus.asStateFlow()
 
     private val _lastSyncTime = MutableStateFlow("Never")
     val lastSyncTime: StateFlow<String> = _lastSyncTime.asStateFlow()
@@ -315,11 +310,18 @@ class CollectionViewModel(application: Application) : AndroidViewModel(applicati
             try {
                 _isSyncing.value = true
                 _errorMessage.value = null
+                _syncStatus.value = null
 
-                val result = syncRepository.syncAllCards()
+                val result = cardSyncRepository.syncDatabase { status ->
+                    _syncStatus.value = status
+                }
 
-                result.onSuccess { progress ->
-                    _syncProgress.value = progress
+                result.onSuccess { syncResult ->
+                    if (syncResult.alreadyUpToDate) {
+                        _syncStatus.value = "Already up to date"
+                    } else {
+                        _syncStatus.value = "Updated ${syncResult.cardsUpdated} cards"
+                    }
                     updateCardCount()
                     updateLastSyncTime()
                 }.onFailure { error ->
@@ -365,8 +367,8 @@ class CollectionViewModel(application: Application) : AndroidViewModel(applicati
         _cardCount.value = repository.getCardCount()
     }
 
-    private suspend fun updateLastSyncTime() {
-        _lastSyncTime.value = syncRepository.getLastSyncTimeString()
+    private fun updateLastSyncTime() {
+        _lastSyncTime.value = cardSyncRepository.getLastSyncTimeString()
     }
 
     fun clearError() {
