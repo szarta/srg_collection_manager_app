@@ -1,3 +1,91 @@
+# Session Notes - Nov 20, 2025 (Part 3)
+
+## What Was Completed This Session ✅
+
+### Card Database Sync Implementation (COMPLETED)
+
+**Goal:** Implement hash-based database sync that downloads only when server has updates, preserving user data
+
+**Server Side:**
+1. **`generate_db_manifest.py`** - Creates `db_manifest.json` with:
+   - SHA-256 hash of database file
+   - Card count, finish links count, related cards count
+   - File size, version, generated timestamp
+
+2. **API Endpoints in `main.py`**:
+   - `GET /api/cards/manifest` - Returns manifest JSON
+   - `GET /api/cards/database` - Returns mobile DB file
+
+3. **`workflow.sh` Updated**:
+   ```bash
+   python3 create_mobile_db.py srg_cards_mobile.db cards.yaml
+   python3 generate_db_manifest.py
+   python3 generate_image_manifest.py
+   ```
+
+**App Side:**
+1. **Room Entities** (`Card.kt`):
+   - `CardRelatedFinish` - Finish variant relationships (foils, etc.)
+   - `CardRelatedCard` - Related card relationships
+   - Both with proper indexes for performance
+
+2. **MIGRATION_3_4** (`UserCardDatabase.kt`):
+   - Creates `card_related_finishes` and `card_related_cards` tables
+   - Database now at version 4
+
+3. **`CardSyncRepository.kt`** - Completely rewritten:
+   - Fetches manifest from server
+   - Compares SHA-256 hash with stored local hash
+   - Downloads entire DB when hash differs
+   - Merges card tables while preserving user data (folders, decks)
+   - Stores last sync hash in SharedPreferences
+
+4. **`CollectionViewModel.kt`** - Updated sync:
+   - Uses new `CardSyncRepository(context)` constructor
+   - Shows sync status messages
+   - `syncCardsFromWebsite()` uses new approach
+
+5. **`GetDicedApi.kt`** - Added:
+   - `getCardsManifest()` endpoint
+   - `CardsManifest` data class
+
+**Current Stats:**
+- 3923 cards
+- 973 related finish links
+- 498 related card links
+- Database size: ~1.5MB
+
+**Key Feature:** User data (folders, folder_cards, decks, deck_cards) is preserved during sync. Only card data tables are replaced.
+
+**Files Created:**
+- `~/data/srg_card_search_website/backend/app/generate_db_manifest.py`
+
+**Files Modified:**
+- `~/data/srg_card_search_website/backend/app/main.py` - DB endpoints
+- `~/data/srg_card_search_website/backend/app/workflow.sh` - Generate manifests
+- `app/src/main/kotlin/com/srg/inventory/data/Card.kt` - Relationship entities
+- `app/src/main/kotlin/com/srg/inventory/data/UserCardDatabase.kt` - Migration v3→v4
+- `app/src/main/kotlin/com/srg/inventory/api/CardSyncRepository.kt` - Hash-based sync
+- `app/src/main/kotlin/com/srg/inventory/api/GetDicedApi.kt` - Manifest endpoint
+- `app/src/main/kotlin/com/srg/inventory/ui/CollectionViewModel.kt` - New sync approach
+- `app/src/main/assets/cards_initial.db` - Regenerated with new tables
+
+**Sync Commands:**
+```bash
+# On server/dev machine - regenerate DB and manifests
+cd ~/data/srg_card_search_website/backend/app
+./workflow.sh
+
+# Or manually:
+python3 create_mobile_db.py srg_cards_mobile.db cards.yaml
+python3 generate_db_manifest.py
+
+# Update bundled database for app release
+cp srg_cards_mobile.db /home/brandon/data/srg_collection_manager_app/app/src/main/assets/cards_initial.db
+```
+
+---
+
 # Session Notes - Nov 20, 2025 (Part 2)
 
 ## What Was Completed This Session ✅

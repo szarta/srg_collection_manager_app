@@ -298,7 +298,18 @@ Camera scanning is unreliable due to mismatch between phone photos and high-qual
 7. ✅ Shared list API integration (share to web, import from URL)
 8. ✅ Database migration v2→v3
 
-### 🔜 Session 8: Polish & Optimization
+### ✅ Session 8: Card Database Sync (COMPLETED - Nov 20, 2025)
+1. ✅ Created `generate_db_manifest.py` - SHA-256 hash and stats
+2. ✅ Added `/api/cards/manifest` and `/api/cards/database` endpoints
+3. ✅ Updated `workflow.sh` to generate DB and manifests
+4. ✅ Created Room entities for `card_related_finishes` and `card_related_cards`
+5. ✅ Added MIGRATION_3_4 (database v4)
+6. ✅ Rewrote `CardSyncRepository.kt` for hash-based sync
+7. ✅ Downloads entire DB when hash differs, merges while preserving user data
+8. ✅ Updated CollectionViewModel for new sync approach
+9. ✅ Regenerated bundled database with new tables (3923 cards, 973 finishes, 498 related)
+
+### 🔜 Session 9: Polish & Optimization
 1. 🖼️ UI/UX polish and animations
 2. ⚡ Performance optimizations
 3. 🧹 Clean up legacy files
@@ -436,36 +447,28 @@ app/src/main/kotlin/com/srg/inventory/
 - **Offline-First**: Manual sync with progress tracking
 - **Bundled Database**: ✨ NEW - App ships with 3,922 cards pre-loaded (1.6MB database in assets)
 
-### Latest Session: Deckbuilding (Nov 20, 2025)
+### Latest Session: Card Database Sync (Nov 20, 2025)
 #### What Was Completed
-1. **Full Deckbuilding Feature** - Complete slot-based deck editor
-   - DeckFolder, Deck, DeckCard entities with migration v2→v3
-   - Deck folders screen (Singles, Tornado, Trios, Tag)
-   - Deck list screen with metadata
-   - Full deck editor with all slots
+1. **Server-Side Infrastructure**
+   - `generate_db_manifest.py` - SHA-256 hash and stats
+   - `/api/cards/manifest` and `/api/cards/database` endpoints
+   - Updated `workflow.sh` for DB and manifest generation
 
-2. **Slot-Based Card System**
-   - Entrance card slot (1)
-   - Competitor card slot (1)
-   - Deck cards 1-30 (finishes are 28-30)
-   - Alternates section (unlimited)
-   - Spectacle type selector (Newman/Valiant)
+2. **App-Side Sync Implementation**
+   - Room entities for `card_related_finishes` and `card_related_cards`
+   - MIGRATION_3_4 (database now at v4)
+   - Rewrote `CardSyncRepository.kt` for hash-based sync
+   - Downloads entire DB when hash differs
+   - Merges card tables while preserving user data
 
-3. **Smart Card Filtering**
-   - Entrance → EntranceCard only
-   - Competitor → Filtered by folder type (Singles→SingleCompetitorCard, etc.)
-   - Deck slots → Filtered by deck_card_number (slot #1 shows only cards with deck_card_number=1)
+3. **Database Stats**
+   - 3923 cards
+   - 973 related finish links
+   - 498 related card links
 
-4. **CSV Export/Import**
-   - Export deck to CSV (Slot Type, Slot Number, Card Name)
-   - Import deck from CSV file
-   - FileProvider for sharing
-
-5. **Shared List API Integration**
-   - Share deck to get-diced.com API
-   - Copy shareable link to clipboard
-   - Import deck from shareable URL
-   - Cards imported as alternates
+4. **Key Feature**
+   - User data (folders, decks) preserved during sync
+   - Only card data tables are replaced
 
 ### Next Steps 🔜
 **High Priority:**

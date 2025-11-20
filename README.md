@@ -5,7 +5,8 @@ Android app for managing your SRG (Super Ring of Glory) wrestling card collectio
 ## Features
 
 ### ✅ Implemented
-- **Bundled Database** - ✨ App ships with 3,922 cards pre-loaded (ready to use immediately!)
+- **Bundled Database** - ✨ App ships with 3,923 cards pre-loaded (ready to use immediately!)
+- **Card Database Sync** - Hash-based sync downloads only when server has updates (preserves user data)
 - **Bundled Images** - ✨ 3,481 mobile-optimized card images (158MB) bundled with app for offline use
 - **Card Images in Detail Views** - Full card images with stats, rules, and errata in detail dialogs
 - **4-Tab Navigation** - Clean bottom nav: Collection | Decks | Viewer | Settings
@@ -96,7 +97,7 @@ app/src/main/kotlin/com/srg/inventory/
 └── MainActivity.kt              # App entry point
 ```
 
-## Database Schema (v2)
+## Database Schema (v4)
 
 ### Folders Table
 ```sql
@@ -127,6 +128,21 @@ CREATE TABLE cards (
     -- MainDeck fields (nullable)
     deck_card_number INTEGER, atk_type TEXT, play_order TEXT,
     synced_at INTEGER NOT NULL      -- Last sync timestamp
+);
+```
+
+### Card Relationship Tables
+```sql
+CREATE TABLE card_related_finishes (
+    card_uuid TEXT NOT NULL,        -- FK to cards.db_uuid
+    finish_uuid TEXT NOT NULL,      -- FK to cards.db_uuid (foil/variant)
+    PRIMARY KEY (card_uuid, finish_uuid)
+);
+
+CREATE TABLE card_related_cards (
+    card_uuid TEXT NOT NULL,        -- FK to cards.db_uuid
+    related_uuid TEXT NOT NULL,     -- FK to cards.db_uuid (linked card)
+    PRIMARY KEY (card_uuid, related_uuid)
 );
 ```
 
