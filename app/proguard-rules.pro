@@ -5,6 +5,9 @@
 # Keep Room entities and DAOs
 -keep class com.srg.inventory.data.** { *; }
 
+# Keep API models (for Gson deserialization)
+-keep class com.srg.inventory.api.** { *; }
+
 # Retrofit
 -keepattributes Signature
 -keepattributes *Annotation*
