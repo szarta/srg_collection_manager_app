@@ -1,5 +1,6 @@
 package com.srg.inventory.api
 
+import com.google.gson.annotations.SerializedName
 import retrofit2.http.*
 
 /**
@@ -54,13 +55,21 @@ interface GetDicedApi {
  * Cards database manifest for sync
  */
 data class CardsManifest(
+    @SerializedName("version")
     val version: Int,
+    @SerializedName("generated")
     val generated: String,
+    @SerializedName("filename")
     val filename: String,
+    @SerializedName("hash")
     val hash: String,
+    @SerializedName("size_bytes")
     val size_bytes: Long,
+    @SerializedName("card_count")
     val card_count: Int,
+    @SerializedName("related_finishes_count")
     val related_finishes_count: Int,
+    @SerializedName("related_cards_count")
     val related_cards_count: Int
 )
 
@@ -68,13 +77,19 @@ data class CardsManifest(
  * Image manifest for sync
  */
 data class ImageManifest(
+    @SerializedName("version")
     val version: Int,
+    @SerializedName("generated")
     val generated: String,
+    @SerializedName("image_count")
     val image_count: Int,
+    @SerializedName("images")
     val images: Map<String, ImageInfo>
 )
 
 data class ImageInfo(
+    @SerializedName("path")
     val path: String,
+    @SerializedName("hash")
     val hash: String
 )
