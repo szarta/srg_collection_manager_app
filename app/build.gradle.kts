@@ -22,8 +22,8 @@ android {
         applicationId = "com.srg.inventory"
         minSdk = 26
         targetSdk = 35
-        versionCode = 4
-        versionName = "1.0.2"
+        versionCode = 9
+        versionName = "1.0.6"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
 
@@ -48,7 +48,7 @@ android {
             isMinifyEnabled = true
             isShrinkResources = true
             proguardFiles(
-                getDefaultProguardFile("proguard-android-optimize.txt"),
+                getDefaultProguardFile("proguard-android.txt"),
                 "proguard-rules.pro"
             )
             signingConfig = signingConfigs.getByName("release")

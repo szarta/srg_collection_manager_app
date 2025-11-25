@@ -2,19 +2,44 @@
 # By default, the flags in this file are appended to flags specified
 # in $ANDROID_HOME/tools/proguard/proguard-android.txt
 
+# Keep attributes needed for reflection and generics
+-keepattributes Signature
+-keepattributes *Annotation*
+-keepattributes Exceptions
+-keepattributes InnerClasses
+-keepattributes EnclosingMethod
+
 # Keep Room entities and DAOs
 -keep class com.srg.inventory.data.** { *; }
 
-# Keep API models (for Gson deserialization)
+# Keep ALL API-related classes - completely preserve structure
 -keep class com.srg.inventory.api.** { *; }
+-keep interface com.srg.inventory.api.** { *; }
+-keepnames class com.srg.inventory.api.** { *; }
 
-# Retrofit
--keepattributes Signature
--keepattributes *Annotation*
+# Retrofit - comprehensive rules for R8
+-dontwarn retrofit2.**
+-dontwarn okhttp3.**
+-dontwarn okio.**
 -keep class retrofit2.** { *; }
+-keep class okhttp3.** { *; }
+-keep class okio.** { *; }
+
 -keepclasseswithmembers class * {
     @retrofit2.http.* <methods>;
 }
+
+# Keep all Retrofit method signatures and return types
+-keepclassmembers,allowshrinking,allowobfuscation interface * {
+    @retrofit2.http.* <methods>;
+}
+
+# Prevent R8 from optimizing away type information
+-keep class kotlin.coroutines.Continuation
+-keep,allowobfuscation,allowshrinking class kotlin.coroutines.** { *; }
+
+# Kotlin metadata is critical for Retrofit with suspend functions
+-keep class kotlin.Metadata { *; }
 
 # OkHttp
 -dontwarn okhttp3.**
