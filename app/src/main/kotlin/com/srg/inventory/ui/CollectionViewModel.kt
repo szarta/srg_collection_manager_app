@@ -171,6 +171,13 @@ class CollectionViewModel(application: Application) : AndroidViewModel(applicati
     private val _isSharing = MutableStateFlow(false)
     val isSharing: StateFlow<Boolean> = _isSharing.asStateFlow()
 
+    // Import state
+    private val _isImporting = MutableStateFlow(false)
+    val isImporting: StateFlow<Boolean> = _isImporting.asStateFlow()
+
+    private val _importSuccess = MutableStateFlow<String?>(null)
+    val importSuccess: StateFlow<String?> = _importSuccess.asStateFlow()
+
     // Filter options
     val cardTypes: StateFlow<List<String>> = flow {
         emit(repository.getAllCardTypes())
@@ -425,6 +432,72 @@ class CollectionViewModel(application: Application) : AndroidViewModel(applicati
 
     fun clearShareUrl() {
         _shareUrl.value = null
+    }
+
+    /**
+     * Import a collection from a shared list
+     */
+    fun importCollectionFromSharedList(sharedListId: String, folderId: String?, folderName: String) {
+        viewModelScope.launch {
+            try {
+                _isImporting.value = true
+                _errorMessage.value = null
+                _importSuccess.value = null
+
+                // Fetch shared list from API
+                val sharedList = RetrofitClient.api.getSharedList(sharedListId)
+
+                // Verify it's a collection
+                if (sharedList.listType != "COLLECTION") {
+                    _errorMessage.value = "This is a deck, not a collection"
+                    return@launch
+                }
+
+                if (sharedList.cardUuids.isEmpty()) {
+                    _errorMessage.value = "Shared list is empty"
+                    return@launch
+                }
+
+                // Get or create folder
+                val targetFolderId = if (folderId != null) {
+                    folderId
+                } else {
+                    // Create new folder
+                    val newFolder = Folder(name = folderName, isDefault = false)
+                    repository.createFolder(newFolder.name)
+                    // Get the newly created folder
+                    repository.getAllFolders().first()
+                        .find { it.name == folderName }?.id
+                        ?: throw Exception("Failed to create folder")
+                }
+
+                // Add all cards to folder
+                var successCount = 0
+                var notFoundCount = 0
+                sharedList.cardUuids.forEach { cardUuid ->
+                    try {
+                        repository.addCardToFolder(targetFolderId, cardUuid, quantity = 1)
+                        successCount++
+                    } catch (e: Exception) {
+                        notFoundCount++
+                    }
+                }
+
+                _importSuccess.value = "Imported $successCount cards to \"$folderName\""
+                if (notFoundCount > 0) {
+                    _importSuccess.value += " ($notFoundCount cards not found)"
+                }
+
+            } catch (e: Exception) {
+                _errorMessage.value = "Import failed: ${e.message}"
+            } finally {
+                _isImporting.value = false
+            }
+        }
+    }
+
+    fun clearImportSuccess() {
+        _importSuccess.value = null
     }
 
     fun clearError() {

@@ -25,6 +25,11 @@ fun MainScreen() {
             context.applicationContext as android.app.Application
         )
     )
+    val deckViewModel: DeckViewModel = viewModel(
+        factory = androidx.lifecycle.ViewModelProvider.AndroidViewModelFactory.getInstance(
+            context.applicationContext as android.app.Application
+        )
+    )
     val navController = rememberNavController()
     val navBackStackEntry by navController.currentBackStackEntryAsState()
     val currentDestination = navBackStackEntry?.destination
@@ -34,7 +39,7 @@ fun MainScreen() {
         BottomNavItem(
             route = Screen.Collection.route,
             icon = Icons.Default.Folder,
-            label = "Collection"
+            label = "Lists"
         ),
         BottomNavItem(
             route = Screen.Decks.route,
@@ -92,6 +97,7 @@ fun MainScreen() {
         CollectionNavHost(
             navController = navController,
             viewModel = collectionViewModel,
+            deckViewModel = deckViewModel,
             modifier = Modifier.padding(paddingValues)
         )
     }

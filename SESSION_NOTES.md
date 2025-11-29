@@ -1,3 +1,186 @@
+# Session Notes - Nov 29, 2025
+
+## What Was Completed This Session ✅
+
+### QR Code Import - Complete Flow Implementation (COMPLETED)
+
+**Goal:** Complete the QR code import cycle so users can scan QR codes and import collections/decks into the app
+
+**Implementation:**
+
+1. **Import Dialogs Created:**
+   - **`ImportCollectionDialog.kt`**:
+     - Clean Material 3 dialog with folder selection
+     - Radio button list of all available folders
+     - Option to create new folder inline with name input
+     - Shows shared list name and card count
+     - Confirm/Cancel actions
+
+   - **`ImportDeckDialog.kt`**:
+     - Similar to collection dialog but for deck folders
+     - Shows spectacle type badge (NEWMAN/VALIANT)
+     - Shows deck name and card count
+     - Inline deck folder creation
+     - Material 3 design consistency
+
+2. **CollectionViewModel Import Logic:**
+   - Added state: `isImporting`, `importSuccess`
+   - `importCollectionFromSharedList(sharedListId, folderId, folderName)`:
+     - Fetches shared list from API via `RetrofitClient.api.getSharedList()`
+     - Validates list type is COLLECTION
+     - Creates new folder if folderId is null
+     - Adds all cards to target folder with quantity=1
+     - Reports success: "Imported X cards to 'Folder Name'"
+     - Handles not-found cards gracefully
+
+3. **DeckViewModel Import Logic:**
+   - Added state: `isImporting`, `importSuccess`
+   - `importDeckFromSharedList(sharedListId, folderId, folderName)`:
+     - Fetches shared list from API
+     - Validates list type is DECK
+     - Creates new deck folder if needed
+     - Extracts spectacle type from deck_data
+     - Creates new deck with proper name and spectacle type
+     - Imports all slots with full structure preservation:
+       - `ENTRANCE` → `repository.setEntrance(deckId, cardUuid)`
+       - `COMPETITOR` → `repository.setCompetitor(deckId, cardUuid)`
+       - `DECK` → `repository.setDeckCard(deckId, cardUuid, slotNumber)`
+       - `FINISH` → `repository.addFinish(deckId, cardUuid)`
+       - `ALTERNATE` → `repository.addAlternate(deckId, cardUuid)`
+     - Reports success with card count
+
+4. **QRCodeScanScreen Complete Rewrite:**
+   - Now accepts both `CollectionViewModel` and `DeckViewModel`
+   - URL parsing helper functions:
+     - `extractSharedListId()` - Extracts UUID from get-diced.com URLs
+     - Supports: `https://get-diced.com/create-list?shared=UUID`
+     - Also handles direct UUID strings
+   - `handleScannedUrl()` function:
+     - Shows loading overlay while fetching
+     - Fetches shared list from API
+     - Determines type (COLLECTION vs DECK)
+     - Shows appropriate import dialog
+     - Handles errors with user-friendly messages
+   - Loading states and error display
+   - Success toasts using `collectAsStateWithLifecycle`
+   - Clean Material 3 UI
+
+5. **Navigation and Dependency Updates:**
+   - `CollectionNavHost` now accepts `deckViewModel` parameter
+   - `MainScreen` creates both ViewModels:
+     - `CollectionViewModel` via AndroidViewModelFactory
+     - `DeckViewModel` via AndroidViewModelFactory
+   - Both ViewModels passed to `QRCodeScanScreen`
+   - Added dependency: `androidx.lifecycle:lifecycle-runtime-compose:2.6.2`
+
+6. **UI Polish:**
+   - Renamed bottom nav tab from "Collection" to "Lists" (text was getting cut off)
+   - Updated `MainScreen.kt` label
+
+**Files Created:**
+- `app/src/main/kotlin/com/srg/inventory/ui/ImportCollectionDialog.kt` (217 lines)
+- `app/src/main/kotlin/com/srg/inventory/ui/ImportDeckDialog.kt` (220 lines)
+
+**Files Modified:**
+- `app/src/main/kotlin/com/srg/inventory/ui/CollectionViewModel.kt` - Import state and logic
+- `app/src/main/kotlin/com/srg/inventory/ui/DecksScreen.kt` - DeckViewModel import logic
+- `app/src/main/kotlin/com/srg/inventory/ui/QRCodeScanScreen.kt` - Complete rewrite (312 lines)
+- `app/src/main/kotlin/com/srg/inventory/ui/Navigation.kt` - Pass both ViewModels
+- `app/src/main/kotlin/com/srg/inventory/ui/MainScreen.kt` - Create and pass DeckViewModel, rename tab
+- `app/build.gradle.kts` - Added lifecycle-runtime-compose
+
+**Complete QR Code User Flow:**
+
+1. **Export from App:**
+   - User goes to collection folder → Taps 📱 → QR code displays
+   - User goes to deck editor → Taps 📱 → QR code displays
+   - QR code shows clickable URL
+
+2. **Import to App:**
+   - User taps Scan tab → Grants camera permission
+   - Taps "Start Scanner" → Scans QR code
+   - App fetches shared list from API
+   - Import dialog appears (collection or deck)
+   - User selects destination folder (or creates new)
+   - Taps "Import" → Cards/deck imported with structure
+   - Success toast: "Imported X cards to 'Folder'"
+
+**Current State:**
+- ✅ Complete QR code export (collections and decks)
+- ✅ Complete QR code import (collections and decks)
+- ✅ Full deck structure preservation
+- ✅ URL parsing and API integration
+- ✅ Error handling and user feedback
+- ✅ App builds successfully (176MB)
+- ✅ Deployed to device
+
+**APK Location:** `app/build/outputs/apk/debug/app-debug.apk`
+
+---
+
+### Website Enhancement - QR Codes for Deck Articles (COMPLETED)
+
+**Goal:** Add QR code generation to deck articles so readers can scan and import decks directly
+
+**Implementation:**
+
+1. **Added QR Code Library:**
+   - Installed `qrcode.react` to frontend
+   - Provides `QRCodeSVG` component for React
+
+2. **Enhanced ArticlePage.jsx:**
+   - Added state for sharing: `sharing`, `shareUrl`
+   - Created `handleShareDeck(names, title)` function:
+     - Fetches all cards by name via `/cards/by-names`
+     - Builds proper deck structure from card order:
+       - Position 0 → COMPETITOR
+       - Position 1 → ENTRANCE
+       - MainDeckCards → DECK slots (using deck_card_number)
+       - Everything else → ALTERNATE
+     - Creates shared list via `/api/shared-lists` with:
+       - `list_type: "DECK"`
+       - `deck_data` with spectacle_type and slots
+       - Description: "Deck from article: {title}"
+     - Copies URL to clipboard automatically
+   - Updated `CodeBlock` component to pass share handler to `DeckGridFromNames`
+
+3. **Enhanced DeckGridFromNames.jsx:**
+   - Imported `QRCodeSVG` from qrcode.react
+   - Updated share success section to display:
+     - **QR Code** (160x160px, level M)
+       - White background with border
+       - "Scan to import" caption
+     - **Share URL input** with copy button
+       - Flex layout for responsive design
+       - Instructions: "Share this link or scan the QR code to import this deck"
+   - Clean green theme matching success state
+
+**Files Modified:**
+- `/home/brandon/data/srg_card_search_website/frontend/src/pages/ArticlePage.jsx`
+- `/home/brandon/data/srg_card_search_website/frontend/src/components/DeckGridFromNames.jsx`
+- `/home/brandon/data/srg_card_search_website/frontend/package.json` - Added qrcode.react
+
+**How It Works:**
+1. Visit any deck article (e.g., `get-diced.com/article/d2-deck`)
+2. Deck displayed with "Copy Shareable Link" button
+3. Click button → QR code appears + URL copied
+4. QR code is scannable immediately
+5. Scan with phone app → Import deck with full structure
+
+**Benefits:**
+- Articles become interactive deck sharing platforms
+- No manual card entry needed
+- Full deck structure preserved (slots, spectacle type)
+- Works seamlessly with mobile app import
+
+**Current State:**
+- ✅ Frontend built and deployed to get-diced.com
+- ✅ QR codes display on all deck articles
+- ✅ Copy to clipboard works
+- ✅ Scannable from Android app
+
+---
+
 # Session Notes - Nov 28, 2025
 
 ## What Was Completed This Session ✅
@@ -232,59 +415,113 @@ shared_lists table:
 
 ---
 
-## What's Next 📋
-
-### Phase 3: Import Logic (TODO)
+### Phase 3: QR Code Import Logic (COMPLETED)
 
 **Goal:** Parse scanned QR codes and import collections/decks
 
-1. **URL Parsing:**
-   - Extract shared list ID from get-diced.com URL
-   - Example: `https://get-diced.com/create-list?shared=UUID` → extract UUID
+**Implementation Completed:**
 
-2. **API Integration:**
-   - Fetch shared list from `GET /api/shared-lists/{id}`
-   - Parse response to determine type (COLLECTION vs DECK)
-   - Extract card UUIDs and deck structure (if applicable)
+1. **Import Dialogs Created:**
+   - `ImportCollectionDialog.kt`:
+     - Shows shared list name and card count
+     - Lists all available folders with radio button selection
+     - Option to create new folder inline
+     - Confirm/Cancel buttons
+   - `ImportDeckDialog.kt`:
+     - Shows shared list name, spectacle type badge, and card count
+     - Lists all available deck folders with radio button selection
+     - Option to create new deck folder inline
+     - Confirm/Cancel buttons
 
-3. **Import Dialogs:**
-   - Create `ImportCollectionDialog.kt`:
-     - Choose destination folder (existing or new)
-     - Show card count and list name
-     - Confirm import
-   - Create `ImportDeckDialog.kt`:
-     - Choose destination deck folder
-     - Show deck name, spectacle type, card count
-     - Confirm import with full structure preservation
+2. **CollectionViewModel Enhanced:**
+   - Added import state: `isImporting`, `importSuccess`
+   - `importCollectionFromSharedList(sharedListId, folderId, folderName)`:
+     - Fetches shared list from API
+     - Verifies it's a COLLECTION type
+     - Creates new folder if needed
+     - Adds all cards to selected folder
+     - Reports success with count of imported cards
 
-4. **ViewModel Enhancements:**
-   - **CollectionViewModel:**
-     - `importCollectionFromSharedList(sharedListId, targetFolderId)`
-     - Fetch cards from shared list
-     - Add cards to selected folder
-   - **DeckViewModel:**
-     - `importDeckFromSharedList(sharedListId, targetDeckFolderId)`
-     - Fetch deck structure from shared list
-     - Create new deck with complete slot structure
-     - Preserve spectacle type, entrance, competitor, deck slots, finishes, alternates
+3. **DeckViewModel Enhanced:**
+   - Added import state: `isImporting`, `importSuccess`
+   - `importDeckFromSharedList(sharedListId, folderId, folderName)`:
+     - Fetches shared list from API
+     - Verifies it's a DECK type
+     - Creates new deck folder if needed
+     - Creates new deck with proper spectacle type
+     - Imports all slots with full structure:
+       - ENTRANCE → repository.setEntrance()
+       - COMPETITOR → repository.setCompetitor()
+       - DECK → repository.setDeckCard(slotNumber)
+       - FINISH → repository.addFinish()
+       - ALTERNATE → repository.addAlternate()
+     - Reports success with card count
 
-5. **UI Flow:**
-   - User scans QR code
-   - App extracts shared list ID
-   - Shows loading indicator while fetching
-   - Determines type and shows appropriate import dialog
-   - User selects destination
-   - Import completes with success message
+4. **QRCodeScanScreen Rewritten:**
+   - Now accepts both CollectionViewModel and DeckViewModel
+   - URL parsing with `extractSharedListId()`:
+     - Supports full URLs: `https://get-diced.com/create-list?shared=UUID`
+     - Supports direct UUIDs
+   - `handleScannedUrl()` function:
+     - Fetches shared list from API
+     - Determines type (COLLECTION vs DECK)
+     - Shows appropriate import dialog
+   - Loading overlay while fetching
+   - Error message display
+   - Success toasts after import
 
-**Files to Create:**
-- `ImportCollectionDialog.kt`
-- `ImportDeckDialog.kt`
+5. **Navigation Updated:**
+   - `CollectionNavHost` now accepts both ViewModels
+   - `MainScreen` creates both ViewModels
+   - `QRCodeScanScreen` receives both ViewModels for import
 
-**Files to Modify:**
-- `CollectionViewModel.kt` - Add import function
-- `DecksScreen.kt` (DeckViewModel) - Add import function
-- `QRCodeScanScreen.kt` - Wire up import logic to onScanResult
-- `Navigation.kt` - Pass ViewModels to scanner for import
+6. **Dependencies Added:**
+   - `androidx.lifecycle:lifecycle-runtime-compose:2.6.2` for collectAsStateWithLifecycle
+
+**Files Created:**
+- `app/src/main/kotlin/com/srg/inventory/ui/ImportCollectionDialog.kt`
+- `app/src/main/kotlin/com/srg/inventory/ui/ImportDeckDialog.kt`
+
+**Files Modified:**
+- `app/src/main/kotlin/com/srg/inventory/ui/CollectionViewModel.kt` - Import functionality
+- `app/src/main/kotlin/com/srg/inventory/ui/DecksScreen.kt` (DeckViewModel) - Import functionality
+- `app/src/main/kotlin/com/srg/inventory/ui/QRCodeScanScreen.kt` - Complete rewrite with import logic
+- `app/src/main/kotlin/com/srg/inventory/ui/Navigation.kt` - Pass ViewModels to scanner
+- `app/src/main/kotlin/com/srg/inventory/ui/MainScreen.kt` - Create and pass DeckViewModel
+- `app/build.gradle.kts` - Added lifecycle-runtime-compose dependency
+
+**Current State:**
+- ✅ QR code scanning functional
+- ✅ URL parsing and shared list fetching
+- ✅ Collection import with folder selection
+- ✅ Deck import with full structure preservation
+- ✅ Success/error messages
+- ✅ App builds successfully (176MB debug APK)
+
+**Complete QR Code Flow:**
+1. User shares collection/deck → Generates QR code
+2. Another user scans QR code → Fetches from API
+3. App shows import dialog → User selects destination
+4. Cards/deck imported with full structure → Success message
+
+**APK Location:** `app/build/outputs/apk/debug/app-debug.apk`
+
+---
+
+## What's Next 📋
+
+### Ready for Testing 🧪
+The complete QR code import/export cycle is now implemented and ready for device testing:
+- Export collections as QR codes
+- Export decks as QR codes (preserving structure)
+- Scan QR codes
+- Import collections to folders
+- Import decks with full slot structure
+
+### Future Enhancements (Optional)
+- Share directly to other apps via Android share sheet
+- QR code size customization
+- Batch import multiple QR codes for import
 
 ---
 

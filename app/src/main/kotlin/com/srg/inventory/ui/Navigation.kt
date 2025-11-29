@@ -44,6 +44,7 @@ sealed class Screen(val route: String) {
 fun CollectionNavHost(
     navController: NavHostController,
     viewModel: CollectionViewModel = viewModel(),
+    deckViewModel: DeckViewModel = viewModel(),
     modifier: Modifier = Modifier
 ) {
     NavHost(
@@ -136,11 +137,8 @@ fun CollectionNavHost(
         // QR Code Scanner screen
         composable(Screen.Scan.route) {
             QRCodeScanScreen(
-                onScanResult = { url ->
-                    // TODO: Handle scanned URL - parse and import
-                    // For now, navigate back
-                    navController.popBackStack()
-                }
+                collectionViewModel = viewModel,
+                deckViewModel = deckViewModel
             )
         }
 

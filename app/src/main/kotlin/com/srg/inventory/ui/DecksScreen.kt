@@ -109,6 +109,13 @@ class DeckViewModel(application: Application) : AndroidViewModel(application) {
     private val _isSharing = MutableStateFlow(false)
     val isSharing: StateFlow<Boolean> = _isSharing.asStateFlow()
 
+    // Import state
+    private val _isImporting = MutableStateFlow(false)
+    val isImporting: StateFlow<Boolean> = _isImporting.asStateFlow()
+
+    private val _importSuccess = MutableStateFlow<String?>(null)
+    val importSuccess: StateFlow<String?> = _importSuccess.asStateFlow()
+
     init {
         viewModelScope.launch {
             repository.ensureDefaultDeckFolders()
@@ -308,6 +315,93 @@ class DeckViewModel(application: Application) : AndroidViewModel(application) {
 
     fun clearShareUrl() {
         _shareUrl.value = null
+    }
+
+    /**
+     * Import a deck from a shared list with full structure preservation
+     */
+    fun importDeckFromSharedList(sharedListId: String, folderId: String?, folderName: String) {
+        viewModelScope.launch {
+            try {
+                _isImporting.value = true
+                _errorMessage.value = null
+                _importSuccess.value = null
+
+                // Fetch shared list from API
+                val sharedList = RetrofitClient.api.getSharedList(sharedListId)
+
+                // Verify it's a deck
+                if (sharedList.listType != "DECK") {
+                    _errorMessage.value = "This is a collection, not a deck"
+                    return@launch
+                }
+
+                if (sharedList.deckData == null) {
+                    _errorMessage.value = "Deck structure data is missing"
+                    return@launch
+                }
+
+                // Get or create folder
+                val targetFolderId = if (folderId != null) {
+                    folderId
+                } else {
+                    // Create new folder
+                    val newFolder = DeckFolder(name = folderName, isDefault = false)
+                    repository.createDeckFolder(newFolder.name)
+                    // Get the newly created folder
+                    repository.getAllDeckFolders().first()
+                        .find { it.name == folderName }?.id
+                        ?: throw Exception("Failed to create folder")
+                }
+
+                // Create new deck with name from shared list
+                val deckName = sharedList.name ?: "Imported Deck"
+                val spectacleType = when (sharedList.deckData.spectacleType) {
+                    "VALIANT" -> SpectacleType.VALIANT
+                    "NEWMAN" -> SpectacleType.NEWMAN
+                    else -> SpectacleType.NEWMAN
+                }
+
+                val newDeck = repository.createDeck(targetFolderId, deckName, spectacleType)
+
+                // Import all slots with their structure
+                var successCount = 0
+                sharedList.deckData.slots.forEach { slot ->
+                    try {
+                        val slotType = when (slot.slotType) {
+                            "ENTRANCE" -> DeckSlotType.ENTRANCE
+                            "COMPETITOR" -> DeckSlotType.COMPETITOR
+                            "DECK" -> DeckSlotType.DECK
+                            "FINISH" -> DeckSlotType.FINISH
+                            "ALTERNATE" -> DeckSlotType.ALTERNATE
+                            else -> DeckSlotType.ALTERNATE
+                        }
+
+                        when (slotType) {
+                            DeckSlotType.ENTRANCE -> repository.setEntrance(newDeck.id, slot.cardUuid)
+                            DeckSlotType.COMPETITOR -> repository.setCompetitor(newDeck.id, slot.cardUuid)
+                            DeckSlotType.DECK -> repository.setDeckCard(newDeck.id, slot.cardUuid, slot.slotNumber)
+                            DeckSlotType.FINISH -> repository.addFinish(newDeck.id, slot.cardUuid)
+                            DeckSlotType.ALTERNATE -> repository.addAlternate(newDeck.id, slot.cardUuid)
+                        }
+                        successCount++
+                    } catch (e: Exception) {
+                        // Card not found or invalid slot, continue
+                    }
+                }
+
+                _importSuccess.value = "Imported \"$deckName\" with $successCount cards to \"$folderName\""
+
+            } catch (e: Exception) {
+                _errorMessage.value = "Import failed: ${e.message}"
+            } finally {
+                _isImporting.value = false
+            }
+        }
+    }
+
+    fun clearImportSuccess() {
+        _importSuccess.value = null
     }
 
     fun clearError() {
