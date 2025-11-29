@@ -1,3 +1,293 @@
+# Session Notes - Nov 28, 2025
+
+## What Was Completed This Session ✅
+
+### QR Code Sharing - Backend API Enhancement (COMPLETED)
+
+**Goal:** Enable QR code sharing for both collection folders and decks, preserving deck structure (slots, spectacle type)
+
+**Backend Changes (COMPLETED):**
+
+1. **Enhanced `SharedList` Model** (`models/base.py`)
+   - Added `SharedListType` enum (COLLECTION, DECK)
+   - Added `list_type` column (defaults to COLLECTION for backward compatibility)
+   - Added `deck_data` JSON column to store deck structure
+   - Imported JSON from sqlalchemy
+
+2. **Enhanced Schemas** (`schemas/shared_list_schema.py`)
+   - Added `SharedListType` enum
+   - Added `DeckSlotData` schema for individual deck slots:
+     - `slot_type`: ENTRANCE, COMPETITOR, DECK, FINISH, ALTERNATE
+     - `slot_number`: 0 for single slots, 1-30 for deck cards
+     - `card_uuid`: card identifier
+   - Added `DeckData` schema for complete deck structure:
+     - `spectacle_type`: NEWMAN or VALIANT
+     - `slots`: List of DeckSlotData
+   - Updated `SharedListCreate` request schema
+   - Updated `SharedListResponse` schema
+
+3. **Enhanced API Router** (`routers/shared_lists.py`)
+   - Updated `create_shared_list` endpoint
+   - Added validation for deck_data when list_type is DECK
+   - Converts Pydantic deck_data to dict for JSON storage
+   - Backward compatible with existing COLLECTION lists
+
+4. **Updated Backup/Restore** (`backup_shared_lists.py`)
+   - Backup now includes `list_type` and `deck_data` fields
+   - Restore handles new fields with backward compatibility
+   - Existing shared lists will be restored as COLLECTION type
+
+**Database Schema Changes:**
+
+```sql
+shared_lists table:
+- id: STRING (primary key, UUID)
+- name: STRING(255) (optional)
+- description: TEXT (optional)
+- card_uuids: ARRAY(STRING) (required)
+- list_type: ENUM('COLLECTION', 'DECK') [NEW] (default: 'COLLECTION')
+- deck_data: JSON [NEW] (optional, required when list_type='DECK')
+- created_at: TIMESTAMP (auto-generated)
+```
+
+**Deck Data JSON Structure:**
+```json
+{
+  "spectacle_type": "NEWMAN" | "VALIANT",
+  "slots": [
+    {
+      "slot_type": "ENTRANCE" | "COMPETITOR" | "DECK" | "FINISH" | "ALTERNATE",
+      "slot_number": 0-30,
+      "card_uuid": "uuid-string"
+    }
+  ]
+}
+```
+
+**API Endpoints (Enhanced):**
+
+- **POST /api/shared-lists** - Now accepts `list_type` and `deck_data`
+- **GET /api/shared-lists/{id}** - Now returns `list_type` and `deck_data`
+- **DELETE /api/shared-lists/{id}** - Unchanged
+- **GET /api/shared-lists** - List endpoint unchanged
+
+**Files Modified:**
+- `/home/brandon/data/srg_card_search_website/backend/app/models/base.py`
+- `/home/brandon/data/srg_card_search_website/backend/app/schemas/shared_list_schema.py`
+- `/home/brandon/data/srg_card_search_website/backend/app/routers/shared_lists.py`
+- `/home/brandon/data/srg_card_search_website/backend/app/backup_shared_lists.py`
+
+**Files Created:**
+- `/home/brandon/data/srg_collection_manager_app/QR_CODE_IMPLEMENTATION.md` - Complete implementation plan
+- `/home/brandon/data/srg_collection_manager_app/srg.conf` - Pulled down nginx config (no changes needed)
+
+**Deployment Steps:**
+
+1. **On dev machine:**
+   ```bash
+   cd ~/data/srg_card_search_website/helpers
+   ./workflow.sh  # Backs up, recreates DB, restores, loads cards
+   ```
+
+2. **Deploy to server:**
+   ```bash
+   # Sync files
+   rsync -avz ~/data/srg_card_search_website/backend/app/ \
+     dondo@get-diced.com:srg_card_search_website/backend/app/
+
+   # SSH and run workflow
+   ssh dondo@get-diced.com
+   cd srg_card_search_website/helpers
+   ./workflow.sh
+
+   # Restart FastAPI service
+   sudo systemctl restart srg_backend
+   ```
+
+**No nginx changes needed** - `/api/` routes already proxied correctly
+
+---
+
+### Android App - QR Code Export (COMPLETED)
+
+**Goal:** Enable QR code sharing for collection folders and decks from the Android app
+
+**Phase 1: Collection Folder QR Export (COMPLETED)**
+
+1. **Added Dependencies** (`app/build.gradle.kts`)
+   - ZXing QR generation: `com.google.zxing:core:3.5.2`
+
+2. **Created Components:**
+   - `QRCodeDialog.kt` - Reusable dialog displaying QR code with clickable URL
+     - Uses ZXing to generate QR code bitmap
+     - Displays shareable URL (underlined, blue, clickable)
+     - Opens URL in browser on tap
+
+3. **Enhanced API Models** (`ApiModels.kt`)
+   - Updated `SharedListRequest` with `listType` and `deckData` fields
+   - Updated `SharedListResponse` to include new fields
+   - Added `DeckData` and `DeckSlot` models
+
+4. **Enhanced CollectionViewModel** (`CollectionViewModel.kt`)
+   - Added share state: `_shareUrl`, `_isSharing`
+   - Added `shareFolderAsQRCode()` function:
+     - Fetches all cards in folder
+     - Creates `SharedListRequest` with `listType="COLLECTION"`
+     - Calls API to generate shareable link
+     - Displays QR code dialog
+
+5. **Enhanced FolderDetailScreen** (`FolderDetailScreen.kt`)
+   - Added QR code share button (📱) to TopAppBar
+   - Shows loading indicator during share
+   - Displays QR code dialog with shareable URL
+
+**Phase 2: Deck QR Export with Full Structure (COMPLETED)**
+
+1. **Enhanced DeckViewModel** (`DecksScreen.kt`)
+   - Added share state: `_shareUrl`, `_isSharing`
+   - Added `shareDeckAsQRCode()` function:
+     - Fetches all cards in deck with slot information
+     - Builds complete deck structure with:
+       - `spectacle_type` (NEWMAN/VALIANT)
+       - `slots` array with slot types and numbers:
+         - ENTRANCE (slot 0)
+         - COMPETITOR (slot 0)
+         - DECK (slots 1-30)
+         - FINISH
+         - ALTERNATE
+     - Creates `SharedListRequest` with `listType="DECK"` and full `deckData`
+     - Calls API to generate shareable link
+
+2. **Enhanced DeckEditorScreen** (`DeckEditorScreen.kt`)
+   - Replaced old Share button with QR code button (📱)
+   - Shows loading indicator during share
+   - Displays QR code dialog with shareable URL
+   - CSV export already functional (Download icon ⬇️)
+
+**Files Created:**
+- `app/src/main/kotlin/com/srg/inventory/ui/QRCodeDialog.kt`
+
+**Files Modified:**
+- `app/build.gradle.kts` - Added ZXing dependency
+- `app/src/main/kotlin/com/srg/inventory/api/ApiModels.kt` - Enhanced shared list models
+- `app/src/main/kotlin/com/srg/inventory/ui/CollectionViewModel.kt` - Collection share functionality
+- `app/src/main/kotlin/com/srg/inventory/ui/FolderDetailScreen.kt` - QR share button
+- `app/src/main/kotlin/com/srg/inventory/ui/DecksScreen.kt` - Deck share functionality
+- `app/src/main/kotlin/com/srg/inventory/ui/DeckEditorScreen.kt` - QR share button
+
+**Current State:**
+- ✅ Backend API deployed and tested at get-diced.com
+- ✅ Collection folders can be shared via QR code
+- ✅ Decks can be shared via QR code with full structure preserved
+- ✅ QR codes display clickable URLs
+- ✅ CSV export works for both collections and decks
+- 📱 APK built (176MB) - ready for testing with better cable
+
+**APK Location:** `app/build/outputs/apk/debug/app-debug.apk`
+
+---
+
+### Phase 3: QR Code Scanner Infrastructure (COMPLETED)
+
+**Goal:** Add camera-based QR code scanner as 5th navigation tab
+
+1. **Added Dependencies** (`app/build.gradle.kts`)
+   - ZXing Embedded: `com.journeyapps:zxing-android-embedded:4.3.0`
+   - Note: Removed redundant `com.google.zxing:core:3.5.2` (already included in embedded library)
+
+2. **Added Permissions** (`AndroidManifest.xml`)
+   - Camera permission: `android.permission.CAMERA`
+   - Runtime permission request handling
+
+3. **Created QR Scanner Screen** (`QRCodeScanScreen.kt`)
+   - Runtime camera permission request
+   - ZXing barcode scanner integration with ScanContract
+   - User-friendly UI with scan button
+   - Permission status indicator
+   - Scan options: QR codes only, beep on scan
+
+4. **Updated Navigation**
+   - Added `Screen.Scan` route to Navigation.kt
+   - Added scanner composable to NavHost
+   - Added 5th tab to bottom navigation in MainScreen
+   - Bottom nav now: Collection | Decks | Viewer | **Scan** | Settings
+
+**Files Created:**
+- `app/src/main/kotlin/com/srg/inventory/ui/QRCodeScanScreen.kt`
+
+**Files Modified:**
+- `app/build.gradle.kts` - Added ZXing embedded, removed redundant core library
+- `app/src/main/AndroidManifest.xml` - Added camera permission
+- `app/src/main/kotlin/com/srg/inventory/ui/Navigation.kt` - Added Scan route and screen
+- `app/src/main/kotlin/com/srg/inventory/ui/MainScreen.kt` - Added Scan tab to bottom navigation
+
+**Current State:**
+- ✅ Scanner tab visible in bottom navigation
+- ✅ Camera permission requested on first use
+- ✅ ZXing scanner launches and scans QR codes
+- ✅ Scanned URL captured successfully
+- ⏸️ Import logic pending (currently just navigates back after scan)
+
+**APK Location:** `app/build/outputs/apk/debug/app-debug.apk` (176MB)
+
+---
+
+## What's Next 📋
+
+### Phase 3: Import Logic (TODO)
+
+**Goal:** Parse scanned QR codes and import collections/decks
+
+1. **URL Parsing:**
+   - Extract shared list ID from get-diced.com URL
+   - Example: `https://get-diced.com/create-list?shared=UUID` → extract UUID
+
+2. **API Integration:**
+   - Fetch shared list from `GET /api/shared-lists/{id}`
+   - Parse response to determine type (COLLECTION vs DECK)
+   - Extract card UUIDs and deck structure (if applicable)
+
+3. **Import Dialogs:**
+   - Create `ImportCollectionDialog.kt`:
+     - Choose destination folder (existing or new)
+     - Show card count and list name
+     - Confirm import
+   - Create `ImportDeckDialog.kt`:
+     - Choose destination deck folder
+     - Show deck name, spectacle type, card count
+     - Confirm import with full structure preservation
+
+4. **ViewModel Enhancements:**
+   - **CollectionViewModel:**
+     - `importCollectionFromSharedList(sharedListId, targetFolderId)`
+     - Fetch cards from shared list
+     - Add cards to selected folder
+   - **DeckViewModel:**
+     - `importDeckFromSharedList(sharedListId, targetDeckFolderId)`
+     - Fetch deck structure from shared list
+     - Create new deck with complete slot structure
+     - Preserve spectacle type, entrance, competitor, deck slots, finishes, alternates
+
+5. **UI Flow:**
+   - User scans QR code
+   - App extracts shared list ID
+   - Shows loading indicator while fetching
+   - Determines type and shows appropriate import dialog
+   - User selects destination
+   - Import completes with success message
+
+**Files to Create:**
+- `ImportCollectionDialog.kt`
+- `ImportDeckDialog.kt`
+
+**Files to Modify:**
+- `CollectionViewModel.kt` - Add import function
+- `DecksScreen.kt` (DeckViewModel) - Add import function
+- `QRCodeScanScreen.kt` - Wire up import logic to onScanResult
+- `Navigation.kt` - Pass ViewModels to scanner for import
+
+---
+
 # Session Notes - Nov 20, 2025 (Part 3)
 
 ## What Was Completed This Session ✅

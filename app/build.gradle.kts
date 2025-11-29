@@ -116,6 +116,10 @@ dependencies {
     // Coil for image loading
     implementation("io.coil-kt:coil-compose:2.5.0")
 
+    // ZXing for QR code generation and scanning
+    // zxing-android-embedded includes zxing:core plus camera integration
+    implementation("com.journeyapps:zxing-android-embedded:4.3.0")
+
     // Testing
     testImplementation("junit:junit:4.13.2")
     androidTestImplementation("androidx.test.ext:junit:1.1.5")

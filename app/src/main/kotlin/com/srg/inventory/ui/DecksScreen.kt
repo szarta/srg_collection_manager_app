@@ -15,6 +15,10 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import androidx.lifecycle.viewmodel.compose.viewModel
+import com.srg.inventory.api.DeckData
+import com.srg.inventory.api.DeckSlot
+import com.srg.inventory.api.RetrofitClient
+import com.srg.inventory.api.SharedListRequest
 import com.srg.inventory.data.*
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.*
@@ -97,6 +101,13 @@ class DeckViewModel(application: Application) : AndroidViewModel(application) {
     // Error state
     private val _errorMessage = MutableStateFlow<String?>(null)
     val errorMessage: StateFlow<String?> = _errorMessage.asStateFlow()
+
+    // Share state
+    private val _shareUrl = MutableStateFlow<String?>(null)
+    val shareUrl: StateFlow<String?> = _shareUrl.asStateFlow()
+
+    private val _isSharing = MutableStateFlow(false)
+    val isSharing: StateFlow<Boolean> = _isSharing.asStateFlow()
 
     init {
         viewModelScope.launch {
@@ -227,6 +238,76 @@ class DeckViewModel(application: Application) : AndroidViewModel(application) {
                 _errorMessage.value = "Failed to add alternate: ${e.message}"
             }
         }
+    }
+
+    /**
+     * Share a deck as a QR code with full structure
+     */
+    fun shareDeckAsQRCode(deckId: String, deckName: String, spectacleType: SpectacleType) {
+        viewModelScope.launch {
+            try {
+                _isSharing.value = true
+                _errorMessage.value = null
+                _shareUrl.value = null
+
+                // Get all cards in the deck
+                val deckCards = repository.getCardsInDeck(deckId).first()
+
+                if (deckCards.isEmpty()) {
+                    _errorMessage.value = "Cannot share an empty deck"
+                    return@launch
+                }
+
+                // Build card UUIDs list (for backward compatibility)
+                val cardUuids = deckCards.map { it.card.dbUuid }
+
+                // Build deck slots with proper structure
+                val slots = deckCards.map { cardWithDetails ->
+                    DeckSlot(
+                        slotType = when (cardWithDetails.slotType) {
+                            DeckSlotType.ENTRANCE -> "ENTRANCE"
+                            DeckSlotType.COMPETITOR -> "COMPETITOR"
+                            DeckSlotType.DECK -> "DECK"
+                            DeckSlotType.FINISH -> "FINISH"
+                            DeckSlotType.ALTERNATE -> "ALTERNATE"
+                        },
+                        slotNumber = cardWithDetails.slotNumber,
+                        cardUuid = cardWithDetails.card.dbUuid
+                    )
+                }
+
+                // Create deck data
+                val deckData = DeckData(
+                    spectacleType = spectacleType.name,
+                    slots = slots
+                )
+
+                // Create shared list request
+                val request = SharedListRequest(
+                    name = deckName,
+                    description = "Shared from SRG Collection Manager",
+                    cardUuids = cardUuids,
+                    listType = "DECK",
+                    deckData = deckData
+                )
+
+                // Call API
+                val response = RetrofitClient.api.createSharedList(request)
+
+                // Build full URL
+                val fullUrl = "https://get-diced.com${response.url}"
+                _shareUrl.value = fullUrl
+
+            } catch (e: Exception) {
+                _errorMessage.value = "Failed to share deck: ${e.message}"
+            } finally {
+                _isSharing.value = false
+            }
+        }
+    }
+
+    fun clearShareUrl() {
+        _shareUrl.value = null
     }
 
     fun clearError() {

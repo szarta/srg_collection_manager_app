@@ -5,6 +5,8 @@ import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.srg.inventory.api.CardSyncRepository
 import com.srg.inventory.api.ImageSyncRepository
+import com.srg.inventory.api.RetrofitClient
+import com.srg.inventory.api.SharedListRequest
 import com.srg.inventory.data.*
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.*
@@ -161,6 +163,13 @@ class CollectionViewModel(application: Application) : AndroidViewModel(applicati
     // Error state
     private val _errorMessage = MutableStateFlow<String?>(null)
     val errorMessage: StateFlow<String?> = _errorMessage.asStateFlow()
+
+    // Share state
+    private val _shareUrl = MutableStateFlow<String?>(null)
+    val shareUrl: StateFlow<String?> = _shareUrl.asStateFlow()
+
+    private val _isSharing = MutableStateFlow(false)
+    val isSharing: StateFlow<Boolean> = _isSharing.asStateFlow()
 
     // Filter options
     val cardTypes: StateFlow<List<String>> = flow {
@@ -369,6 +378,53 @@ class CollectionViewModel(application: Application) : AndroidViewModel(applicati
 
     private fun updateLastSyncTime() {
         _lastSyncTime.value = cardSyncRepository.getLastSyncTimeString()
+    }
+
+    /**
+     * Share a collection folder as a QR code
+     */
+    fun shareFolderAsQRCode(folderId: String, folderName: String) {
+        viewModelScope.launch {
+            try {
+                _isSharing.value = true
+                _errorMessage.value = null
+                _shareUrl.value = null
+
+                // Get all cards in the folder
+                val cardsInFolder = repository.getCardsInFolder(folderId).first()
+                val cardUuids = cardsInFolder.map { it.dbUuid }
+
+                if (cardUuids.isEmpty()) {
+                    _errorMessage.value = "Cannot share an empty folder"
+                    return@launch
+                }
+
+                // Create shared list request
+                val request = SharedListRequest(
+                    name = folderName,
+                    description = "Shared from SRG Collection Manager",
+                    cardUuids = cardUuids,
+                    listType = "COLLECTION",
+                    deckData = null
+                )
+
+                // Call API
+                val response = RetrofitClient.api.createSharedList(request)
+
+                // Build full URL
+                val fullUrl = "https://get-diced.com${response.url}"
+                _shareUrl.value = fullUrl
+
+            } catch (e: Exception) {
+                _errorMessage.value = "Failed to share folder: ${e.message}"
+            } finally {
+                _isSharing.value = false
+            }
+        }
+    }
+
+    fun clearShareUrl() {
+        _shareUrl.value = null
     }
 
     fun clearError() {

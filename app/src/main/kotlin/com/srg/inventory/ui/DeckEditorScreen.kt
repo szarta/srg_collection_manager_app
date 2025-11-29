@@ -48,6 +48,8 @@ fun DeckEditorScreen(
 ) {
     val deck by viewModel.currentDeck.collectAsState()
     val cardsInDeck by viewModel.cardsInCurrentDeck.collectAsState()
+    val isSharing by viewModel.isSharing.collectAsState()
+    val shareUrl by viewModel.shareUrl.collectAsState()
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
 
@@ -114,13 +116,23 @@ fun DeckEditorScreen(
                     horizontalArrangement = Arrangement.SpaceEvenly,
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    // Share button
-                    IconButton(onClick = {
-                        scope.launch {
-                            shareDeckToWeb(context, deck, cardsInDeck)
+                    // Share as QR Code button
+                    IconButton(
+                        onClick = {
+                            deck?.let {
+                                viewModel.shareDeckAsQRCode(deckId, it.name, it.spectacleType)
+                            }
+                        },
+                        enabled = !isSharing && cardsInDeck.isNotEmpty()
+                    ) {
+                        if (isSharing) {
+                            CircularProgressIndicator(
+                                modifier = Modifier.size(24.dp),
+                                strokeWidth = 2.dp
+                            )
+                        } else {
+                            Icon(Icons.Default.QrCode2, contentDescription = "Share as QR Code")
                         }
-                    }) {
-                        Icon(Icons.Default.Share, contentDescription = "Share deck")
                     }
                     // Import from URL button
                     IconButton(onClick = { showImportUrlDialog = true }) {
@@ -332,6 +344,15 @@ fun DeckEditorScreen(
                     importDeckFromUrl(context, url, deckId, viewModel)
                 }
             }
+        )
+    }
+
+    // QR Code share dialog
+    shareUrl?.let { url ->
+        QRCodeDialog(
+            url = url,
+            title = "Share Deck",
+            onDismiss = { viewModel.clearShareUrl() }
         )
     }
 }

@@ -82,7 +82,11 @@ data class SharedListRequest(
     @SerializedName("description")
     val description: String? = null,
     @SerializedName("card_uuids")
-    val cardUuids: List<String>
+    val cardUuids: List<String>,
+    @SerializedName("list_type")
+    val listType: String = "COLLECTION",
+    @SerializedName("deck_data")
+    val deckData: DeckData? = null
 )
 
 data class SharedListResponse(
@@ -94,6 +98,10 @@ data class SharedListResponse(
     val description: String? = null,
     @SerializedName("card_uuids")
     val cardUuids: List<String>,
+    @SerializedName("list_type")
+    val listType: String,
+    @SerializedName("deck_data")
+    val deckData: DeckData? = null,
     @SerializedName("created_at")
     val createdAt: String? = null
 )
@@ -105,4 +113,20 @@ data class SharedListCreateResponse(
     val url: String,
     @SerializedName("message")
     val message: String
+)
+
+data class DeckData(
+    @SerializedName("spectacle_type")
+    val spectacleType: String,
+    @SerializedName("slots")
+    val slots: List<DeckSlot>
+)
+
+data class DeckSlot(
+    @SerializedName("slot_type")
+    val slotType: String,
+    @SerializedName("slot_number")
+    val slotNumber: Int,
+    @SerializedName("card_uuid")
+    val cardUuid: String
 )

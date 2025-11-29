@@ -14,8 +14,8 @@ import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 
 /**
- * Main screen with 4-tab bottom navigation
- * Tabs: Collection | Decks | Card Search | Settings
+ * Main screen with 5-tab bottom navigation
+ * Tabs: Collection | Decks | Viewer | Scan | Settings
  */
 @Composable
 fun MainScreen() {
@@ -45,6 +45,11 @@ fun MainScreen() {
             route = Screen.CardSearch.route,
             icon = Icons.Default.Search,
             label = "Viewer"
+        ),
+        BottomNavItem(
+            route = Screen.Scan.route,
+            icon = Icons.Default.QrCodeScanner,
+            label = "Scan"
         ),
         BottomNavItem(
             route = Screen.Settings.route,

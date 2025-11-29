@@ -43,6 +43,8 @@ fun FolderDetailScreen(
 ) {
     val cardsWithQuantities by viewModel.cardsInCurrentFolder.collectAsState()
     val foldersWithCounts by viewModel.foldersWithCounts.collectAsState()
+    val isSharing by viewModel.isSharing.collectAsState()
+    val shareUrl by viewModel.shareUrl.collectAsState()
 
     val currentFolder = remember(foldersWithCounts, folderId) {
         foldersWithCounts.find { it.folder.id == folderId }?.folder
@@ -114,6 +116,27 @@ fun FolderDetailScreen(
                             Icon(Icons.Default.FileDownload, contentDescription = "Export to CSV")
                         }
                     }
+                    // Share as QR Code
+                    if (cardsWithQuantities.isNotEmpty() && currentFolder != null) {
+                        IconButton(
+                            onClick = {
+                                viewModel.shareFolderAsQRCode(
+                                    folderId = currentFolder.id,
+                                    folderName = currentFolder.name
+                                )
+                            },
+                            enabled = !isSharing
+                        ) {
+                            if (isSharing) {
+                                CircularProgressIndicator(
+                                    modifier = Modifier.size(24.dp),
+                                    strokeWidth = 2.dp
+                                )
+                            } else {
+                                Icon(Icons.Default.QrCode2, contentDescription = "Share as QR Code")
+                            }
+                        }
+                    }
                 }
             )
         },
@@ -171,6 +194,15 @@ fun FolderDetailScreen(
                 viewModel.removeCardFromFolder(folderId, cardWithQty.card.dbUuid)
                 cardToEditQuantity = null
             }
+        )
+    }
+
+    // QR Code share dialog
+    shareUrl?.let { url ->
+        QRCodeDialog(
+            url = url,
+            title = "Share Collection",
+            onDismiss = { viewModel.clearShareUrl() }
         )
     }
 }
