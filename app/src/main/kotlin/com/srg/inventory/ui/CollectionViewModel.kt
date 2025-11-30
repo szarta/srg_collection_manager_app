@@ -128,16 +128,22 @@ class CollectionViewModel(application: Application) : AndroidViewModel(applicati
     ) { query, cardType, atkType, playOrder, division ->
         SearchFilters(query, cardType, atkType, playOrder, division)
     }.flatMapLatest { filters ->
-        repository.searchCardsWithFilters(
-            searchQuery = filters.query.ifBlank { null },
-            cardType = filters.cardType,
-            atkType = filters.atkType,
-            playOrder = filters.playOrder,
-            division = filters.division,
-            releaseSet = null,
-            isBanned = null,
-            limit = 50
-        )
+        // Return empty list if no search query and no filters
+        if (filters.query.isBlank() && filters.cardType == null && filters.atkType == null &&
+            filters.playOrder == null && filters.division == null) {
+            flowOf(emptyList())
+        } else {
+            repository.searchCardsWithFilters(
+                searchQuery = filters.query.ifBlank { null },
+                cardType = filters.cardType,
+                atkType = filters.atkType,
+                playOrder = filters.playOrder,
+                division = filters.division,
+                releaseSet = null,
+                isBanned = null,
+                limit = 50
+            )
+        }
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
     // Sync state

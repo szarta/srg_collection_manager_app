@@ -58,14 +58,6 @@ fun CardSearchScreen(
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
                     }
-                },
-                actions = {
-                    if (selectedCardType != null || selectedAtkType != null ||
-                        selectedPlayOrder != null || selectedDivision != null) {
-                        IconButton(onClick = { viewModel.clearFilters() }) {
-                            Icon(Icons.Default.FilterAltOff, contentDescription = "Clear filters")
-                        }
-                    }
                 }
             )
         }

@@ -46,7 +46,8 @@ interface CardDao {
     @Query("""
         SELECT * FROM cards
         WHERE (:searchQuery IS NULL OR name LIKE '%' || :searchQuery || '%' COLLATE NOCASE
-               OR rules_text LIKE '%' || :searchQuery || '%' COLLATE NOCASE)
+               OR rules_text LIKE '%' || :searchQuery || '%' COLLATE NOCASE
+               OR tags LIKE '%' || :searchQuery || '%' COLLATE NOCASE)
         AND (:cardType IS NULL OR card_type = :cardType)
         AND (:atkType IS NULL OR atk_type = :atkType)
         AND (:playOrder IS NULL OR play_order = :playOrder)
