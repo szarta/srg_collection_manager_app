@@ -176,12 +176,30 @@ class CardSyncRepository(private val context: Context) {
         var cardsUpdated = 0
 
         try {
+            // Enable foreign keys (required for CASCADE deletes to work)
+            userDb.execSQL("PRAGMA foreign_keys = ON")
+
             userDb.beginTransaction()
+
+            // Drop temp table if it exists from a previous failed sync
+            userDb.execSQL("DROP TABLE IF EXISTS folder_cards_backup")
+
+            // Backup folder_cards before deleting cards (to preserve user's collection data)
+            Log.d(TAG, "Backing up folder_cards...")
+            userDb.execSQL("CREATE TEMP TABLE folder_cards_backup AS SELECT * FROM folder_cards")
+
+            val backupCursor = userDb.rawQuery("SELECT COUNT(*) FROM folder_cards_backup", null)
+            backupCursor.use { cursor ->
+                if (cursor.moveToFirst()) {
+                    val backupCount = cursor.getInt(0)
+                    Log.d(TAG, "Backed up $backupCount folder_cards entries")
+                }
+            }
 
             // Clear existing card data (but preserve user data)
             userDb.execSQL("DELETE FROM card_related_finishes")
             userDb.execSQL("DELETE FROM card_related_cards")
-            userDb.execSQL("DELETE FROM cards")
+            userDb.execSQL("DELETE FROM cards")  // This cascades and deletes folder_cards due to foreign key
 
             // Copy cards from source database
             val cardsCursor = sourceDb.rawQuery("SELECT * FROM cards", null)
@@ -224,6 +242,40 @@ class CardSyncRepository(private val context: Context) {
                     userDb.insert("card_related_cards", null, values)
                 }
             }
+
+            // Verify folder_cards was cleared by cascade
+            val afterDeleteCursor = userDb.rawQuery("SELECT COUNT(*) FROM folder_cards", null)
+            afterDeleteCursor.use { cursor ->
+                if (cursor.moveToFirst()) {
+                    val remainingCount = cursor.getInt(0)
+                    Log.d(TAG, "After cascade delete: $remainingCount folder_cards entries (should be 0)")
+                    if (remainingCount > 0) {
+                        Log.w(TAG, "CASCADE delete didn't work properly, manually clearing folder_cards")
+                        userDb.execSQL("DELETE FROM folder_cards")
+                    }
+                }
+            }
+
+            // Restore folder_cards from backup (only for cards that still exist)
+            Log.d(TAG, "Restoring folder_cards...")
+            userDb.execSQL("""
+                INSERT OR REPLACE INTO folder_cards (folder_id, card_uuid, quantity, added_at)
+                SELECT fcb.folder_id, fcb.card_uuid, fcb.quantity, fcb.added_at
+                FROM folder_cards_backup fcb
+                INNER JOIN cards c ON fcb.card_uuid = c.db_uuid
+            """)
+
+            // Log how many folder_cards were restored
+            val restoredCursor = userDb.rawQuery("SELECT COUNT(*) FROM folder_cards", null)
+            restoredCursor.use { cursor ->
+                if (cursor.moveToFirst()) {
+                    val restoredCount = cursor.getInt(0)
+                    Log.d(TAG, "Restored $restoredCount folder_cards entries")
+                }
+            }
+
+            // Clean up temp table
+            userDb.execSQL("DROP TABLE IF EXISTS folder_cards_backup")
 
             userDb.setTransactionSuccessful()
         } finally {
