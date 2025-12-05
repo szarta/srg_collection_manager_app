@@ -2,8 +2,8 @@ package com.srg.inventory.ui
 
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Folder
@@ -37,12 +37,14 @@ fun ImportDeckDialog(
         Card(
             modifier = Modifier
                 .fillMaxWidth()
+                .fillMaxHeight(0.9f)
                 .padding(16.dp)
         ) {
             Column(
                 modifier = Modifier
                     .padding(16.dp)
                     .fillMaxWidth()
+                    .verticalScroll(rememberScrollState())
             ) {
                 // Header
                 Text(
@@ -109,43 +111,35 @@ fun ImportDeckDialog(
 
                 Spacer(modifier = Modifier.height(8.dp))
 
-                // Folder list
-                LazyColumn(
+                // Folder list (using Column instead of LazyColumn for scrollability)
+                folders.forEach { folder ->
+                    DeckFolderItem(
+                        folder = folder,
+                        isSelected = selectedFolder?.id == folder.id,
+                        onClick = { selectedFolder = folder }
+                    )
+                }
+
+                // Create new folder option
+                Row(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .heightIn(max = 300.dp)
+                        .clickable { showNewFolderDialog = true }
+                        .padding(vertical = 12.dp, horizontal = 8.dp),
+                    verticalAlignment = Alignment.CenterVertically
                 ) {
-                    items(folders) { folder ->
-                        DeckFolderItem(
-                            folder = folder,
-                            isSelected = selectedFolder?.id == folder.id,
-                            onClick = { selectedFolder = folder }
-                        )
-                    }
-
-                    // Create new folder option
-                    item {
-                        Row(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .clickable { showNewFolderDialog = true }
-                                .padding(vertical = 12.dp, horizontal = 8.dp),
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Icon(
-                                imageVector = Icons.Default.Add,
-                                contentDescription = "Create new folder",
-                                tint = MaterialTheme.colorScheme.primary
-                            )
-                            Spacer(modifier = Modifier.width(12.dp))
-                            Text(
-                                text = "Create new folder",
-                                style = MaterialTheme.typography.bodyLarge,
-                                color = MaterialTheme.colorScheme.primary,
-                                fontWeight = FontWeight.Medium
-                            )
-                        }
-                    }
+                    Icon(
+                        imageVector = Icons.Default.Add,
+                        contentDescription = "Create new folder",
+                        tint = MaterialTheme.colorScheme.primary
+                    )
+                    Spacer(modifier = Modifier.width(12.dp))
+                    Text(
+                        text = "Create new folder",
+                        style = MaterialTheme.typography.bodyLarge,
+                        color = MaterialTheme.colorScheme.primary,
+                        fontWeight = FontWeight.Medium
+                    )
                 }
 
                 Spacer(modifier = Modifier.height(16.dp))

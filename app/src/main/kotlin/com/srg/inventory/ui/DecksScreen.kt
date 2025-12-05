@@ -158,6 +158,19 @@ class DeckViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
+    fun renameDeck(deckId: String, newName: String) {
+        viewModelScope.launch {
+            try {
+                val deck = repository.getDeckById(deckId)
+                deck?.let {
+                    repository.updateDeck(it.copy(name = newName))
+                }
+            } catch (e: Exception) {
+                _errorMessage.value = "Failed to rename deck: ${e.message}"
+            }
+        }
+    }
+
     fun updateDeckSpectacleType(deckId: String, spectacleType: SpectacleType) {
         viewModelScope.launch {
             try {
@@ -406,6 +419,114 @@ class DeckViewModel(application: Application) : AndroidViewModel(application) {
 
     fun clearError() {
         _errorMessage.value = null
+    }
+
+    /**
+     * Import cards from a collection folder into a deck
+     * Automatically slots cards based on type:
+     * - EntranceCard → ENTRANCE slot
+     * - Competitor cards → COMPETITOR slot (first found)
+     * - MainDeckCard → DECK slots (by deck_card_number)
+     * - Extra cards → ALTERNATES
+     */
+    fun importFolderToDeck(deckId: String, collectionFolderId: String) {
+        viewModelScope.launch {
+            try {
+                _errorMessage.value = null
+
+                // Get the collection repository
+                val collectionRepository = com.srg.inventory.data.CollectionRepository(
+                    database.folderDao(),
+                    database.cardDao(),
+                    database.folderCardDao()
+                )
+
+                // Get all cards from the collection folder
+                val cardsInFolder = collectionRepository.getCardsInFolder(collectionFolderId).first()
+
+                if (cardsInFolder.isEmpty()) {
+                    _errorMessage.value = "Selected folder is empty"
+                    return@launch
+                }
+
+                // Track what we've added
+                var entranceAdded = false
+                var competitorAdded = false
+                val deckSlotsUsed = mutableSetOf<Int>()
+                var alternatesCount = 0
+
+                // Get current deck cards to avoid overwriting
+                val currentDeckCards = repository.getDeckCards(deckId)
+                val hasEntrance = currentDeckCards.any { it.slotType == DeckSlotType.ENTRANCE }
+                val hasCompetitor = currentDeckCards.any { it.slotType == DeckSlotType.COMPETITOR }
+                val usedDeckSlots = currentDeckCards
+                    .filter { it.slotType == DeckSlotType.DECK }
+                    .map { it.slotNumber }
+                    .toSet()
+
+                // Process each card
+                for (card in cardsInFolder) {
+                    when (card.cardType) {
+                        "EntranceCard" -> {
+                            if (!hasEntrance && !entranceAdded) {
+                                repository.setEntrance(deckId, card.dbUuid)
+                                entranceAdded = true
+                            } else {
+                                repository.addAlternate(deckId, card.dbUuid)
+                                alternatesCount++
+                            }
+                        }
+
+                        "SingleCompetitorCard", "TornadoCompetitorCard", "TrioCompetitorCard" -> {
+                            if (!hasCompetitor && !competitorAdded) {
+                                repository.setCompetitor(deckId, card.dbUuid)
+                                competitorAdded = true
+                            } else {
+                                repository.addAlternate(deckId, card.dbUuid)
+                                alternatesCount++
+                            }
+                        }
+
+                        "MainDeckCard" -> {
+                            // Try to slot by deck_card_number if available
+                            val slotNumber = card.deckCardNumber
+                            if (slotNumber != null && slotNumber in 1..30) {
+                                if (!usedDeckSlots.contains(slotNumber) && !deckSlotsUsed.contains(slotNumber)) {
+                                    repository.setDeckCard(deckId, card.dbUuid, slotNumber)
+                                    deckSlotsUsed.add(slotNumber)
+                                } else {
+                                    // Slot already filled, add to alternates
+                                    repository.addAlternate(deckId, card.dbUuid)
+                                    alternatesCount++
+                                }
+                            } else {
+                                // No deck_card_number, add to alternates
+                                repository.addAlternate(deckId, card.dbUuid)
+                                alternatesCount++
+                            }
+                        }
+
+                        else -> {
+                            // All other card types (spectacles, etc.) go to alternates
+                            repository.addAlternate(deckId, card.dbUuid)
+                            alternatesCount++
+                        }
+                    }
+                }
+
+                // Build success message
+                val parts = mutableListOf<String>()
+                if (entranceAdded) parts.add("entrance")
+                if (competitorAdded) parts.add("competitor")
+                if (deckSlotsUsed.isNotEmpty()) parts.add("${deckSlotsUsed.size} deck cards")
+                if (alternatesCount > 0) parts.add("$alternatesCount alternates")
+
+                _importSuccess.value = "Imported: ${parts.joinToString(", ")}"
+
+            } catch (e: Exception) {
+                _errorMessage.value = "Import failed: ${e.message}"
+            }
+        }
     }
 }
 

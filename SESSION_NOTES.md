@@ -1,3 +1,90 @@
+# Session Notes - Dec 1, 2025
+
+## What Was Completed This Session ✅
+
+### QR Code Scanner UX Fixes (COMPLETED)
+
+**Goal:** Fix QR code scanning issues with orientation and dialog handling
+
+**Issues Fixed:**
+
+1. **Vertical Orientation Scanning** (`QRCodeScanScreen.kt:145`)
+   - **Problem**: Scanner couldn't scan QR codes in vertical/portrait orientation
+   - **Fix**: Removed `setOrientationLocked(false)` to use default ZXing behavior
+   - **Result**: Scanner now works in both portrait and landscape orientations
+
+2. **Dialog Scrolling in Landscape** (`ImportCollectionDialog.kt`, `ImportDeckDialog.kt`)
+   - **Problem**: Import dialogs cut off buttons in landscape mode, couldn't scroll to access import/cancel
+   - **Fixes**:
+     - Made dialog height responsive: `fillMaxHeight(0.9f)` to use 90% of screen
+     - Added `verticalScroll(rememberScrollState())` to entire dialog content
+     - Replaced `LazyColumn` with regular `Column` + `forEach` (can't nest scrolling)
+     - Removed `heightIn(max = 300.dp)` constraint on folder list
+   - **Result**: Full dialog content scrollable, buttons always accessible
+
+3. **Dialog Dismissal on Screen Rotation** (`QRCodeScanScreen.kt:38-49, 67-93, 229-282`)
+   - **Problem**: Import dialog disappeared when rotating phone during QR import flow
+   - **Fixes**:
+     - Changed from `remember` to `rememberSaveable` for all state
+     - Store primitive data instead of non-Parcelable `SharedListResponse`:
+       - `sharedListId: String?`
+       - `sharedListName: String?`
+       - `sharedListCardCount: Int`
+       - `sharedListType: String?`
+       - `sharedListSpectacleType: String?`
+     - Updated dialog conditions and callbacks to use saved state
+   - **Result**: Dialog persists through rotation with all data intact
+
+**Files Modified:**
+- `app/src/main/kotlin/com/srg/inventory/ui/QRCodeScanScreen.kt` - Orientation fix, state persistence
+- `app/src/main/kotlin/com/srg/inventory/ui/ImportCollectionDialog.kt` - Scrollable dialog
+- `app/src/main/kotlin/com/srg/inventory/ui/ImportDeckDialog.kt` - Scrollable dialog
+
+**Complete QR Code User Flow (Fixed):**
+1. User taps Scan tab → Taps "Start Scanner" (works in portrait OR landscape)
+2. Scans QR code → Import dialog appears with folder selection
+3. User can scroll dialog to see all folders and buttons (landscape safe)
+4. Rotating phone during import keeps dialog open and preserves state
+5. User selects folder → Taps "Import" → Success!
+
+---
+
+### Version & Settings Updates (COMPLETED)
+
+**Version Bump:**
+- Updated to **v1.0.8** (versionCode 11)
+- Previous: v1.0.7 (versionCode 10)
+
+**Settings Screen Enhancement:**
+- Added version display to About section: "Version 1.0.8 (11)"
+- Uses `BuildConfig.VERSION_NAME` and `BuildConfig.VERSION_CODE`
+
+**Documentation Updates:**
+- **README.md**:
+  - Added QR Code Import/Export section to features list
+  - Updated "How to Use" with QR Code Sharing instructions
+  - Updated Integration section with QR code capabilities
+  - Updated Phase 3 roadmap with QR code completion
+- **SESSION_NOTES.md**: This session added!
+
+**Files Modified:**
+- `app/build.gradle.kts` - Version bump to 1.0.8
+- `app/src/main/kotlin/com/srg/inventory/ui/SettingsScreen.kt` - Version display
+- `README.md` - QR code documentation
+- `SESSION_NOTES.md` - This session
+
+**Current State:**
+- ✅ QR scanning works in all orientations
+- ✅ Import dialogs fully accessible in landscape
+- ✅ Dialogs survive screen rotation
+- ✅ Version visible in Settings screen
+- ✅ Documentation up to date
+- ✅ App builds successfully (v1.0.8)
+
+**APK Location:** `app/build/outputs/apk/debug/app-debug.apk` (176MB)
+
+---
+
 # Session Notes - Nov 29, 2025
 
 ## What Was Completed This Session ✅

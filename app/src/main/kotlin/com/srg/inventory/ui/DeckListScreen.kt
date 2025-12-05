@@ -37,6 +37,7 @@ fun DeckListScreen(
 
     var showCreateDialog by remember { mutableStateOf(false) }
     var deckToDelete by remember { mutableStateOf<DeckWithCardCount?>(null) }
+    var deckToRename by remember { mutableStateOf<DeckWithCardCount?>(null) }
 
     LaunchedEffect(folderId) {
         viewModel.setCurrentFolder(folderId)
@@ -119,7 +120,8 @@ fun DeckListScreen(
                     DeckItem(
                         deckWithCount = deckWithCount,
                         onClick = { onDeckClick(deckWithCount.deck.id) },
-                        onDelete = { deckToDelete = deckWithCount }
+                        onDelete = { deckToDelete = deckWithCount },
+                        onRename = { deckToRename = deckWithCount }
                     )
                 }
             }
@@ -133,6 +135,18 @@ fun DeckListScreen(
             onCreate = { name ->
                 viewModel.createDeck(folderId, name)
                 showCreateDialog = false
+            }
+        )
+    }
+
+    // Rename deck dialog
+    deckToRename?.let { deck ->
+        RenameDeckDialog(
+            currentName = deck.deck.name,
+            onDismiss = { deckToRename = null },
+            onRename = { newName ->
+                viewModel.renameDeck(deck.deck.id, newName)
+                deckToRename = null
             }
         )
     }
@@ -171,6 +185,7 @@ fun DeckItem(
     deckWithCount: DeckWithCardCount,
     onClick: () -> Unit,
     onDelete: () -> Unit,
+    onRename: () -> Unit,
     modifier: Modifier = Modifier
 ) {
     val deck = deckWithCount.deck
@@ -206,11 +221,28 @@ fun DeckItem(
 
             // Deck info
             Column(modifier = Modifier.weight(1f)) {
-                Text(
-                    text = deck.name,
-                    style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.Medium
-                )
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(4.dp)
+                ) {
+                    Text(
+                        text = deck.name,
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.Medium,
+                        modifier = Modifier.weight(1f, fill = false)
+                    )
+                    IconButton(
+                        onClick = onRename,
+                        modifier = Modifier.size(32.dp)
+                    ) {
+                        Icon(
+                            Icons.Default.Edit,
+                            contentDescription = "Rename deck",
+                            modifier = Modifier.size(18.dp),
+                            tint = MaterialTheme.colorScheme.primary
+                        )
+                    }
+                }
                 Row(
                     horizontalArrangement = Arrangement.spacedBy(8.dp),
                     verticalAlignment = Alignment.CenterVertically
@@ -279,6 +311,42 @@ fun CreateDeckDialog(
                 enabled = name.isNotBlank()
             ) {
                 Text("Create")
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) {
+                Text("Cancel")
+            }
+        }
+    )
+}
+
+@Composable
+fun RenameDeckDialog(
+    currentName: String,
+    onDismiss: () -> Unit,
+    onRename: (String) -> Unit
+) {
+    var name by remember { mutableStateOf(currentName) }
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("Rename Deck") },
+        text = {
+            OutlinedTextField(
+                value = name,
+                onValueChange = { name = it },
+                label = { Text("Deck Name") },
+                singleLine = true,
+                modifier = Modifier.fillMaxWidth()
+            )
+        },
+        confirmButton = {
+            TextButton(
+                onClick = { onRename(name) },
+                enabled = name.isNotBlank() && name != currentName
+            ) {
+                Text("Rename")
             }
         },
         dismissButton = {

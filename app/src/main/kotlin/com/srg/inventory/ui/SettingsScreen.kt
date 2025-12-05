@@ -7,6 +7,7 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 
@@ -19,6 +20,18 @@ fun SettingsScreen(
     viewModel: CollectionViewModel,
     modifier: Modifier = Modifier
 ) {
+    val context = LocalContext.current
+    val packageInfo = remember {
+        context.packageManager.getPackageInfo(context.packageName, 0)
+    }
+    val versionName = packageInfo.versionName
+    val versionCode = if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.P) {
+        packageInfo.longVersionCode.toString()
+    } else {
+        @Suppress("DEPRECATION")
+        packageInfo.versionCode.toString()
+    }
+
     val isSyncing by viewModel.isSyncing.collectAsState()
     val lastSyncTime by viewModel.lastSyncTime.collectAsState()
     val cardCount by viewModel.cardCount.collectAsState()
@@ -249,6 +262,12 @@ fun SettingsScreen(
                         text = "SRG Collection Manager",
                         style = MaterialTheme.typography.bodyLarge
                     )
+                    Text(
+                        text = "Version $versionName ($versionCode)",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                    Spacer(modifier = Modifier.height(4.dp))
                     Text(
                         text = "Manage your SRG wrestling card collection and build decks.",
                         style = MaterialTheme.typography.bodyMedium,

@@ -26,6 +26,12 @@ Android app for managing your SRG (Super Ring of Glory) wrestling card collectio
   - Spectacle type selector (Newman/Valiant)
 - **Deck CSV Export/Import** - Export decks to CSV, import from CSV files
 - **Deck Sharing** - Share decks to get-diced.com, import from shareable URLs
+- **QR Code Import/Export** - ✨ NEW! Generate QR codes for collections and decks, scan QR codes to import
+  - Export collections/decks as QR codes with shareable URLs
+  - Scan QR codes from app or get-diced.com articles
+  - Full deck structure preservation (slots, spectacle type)
+  - Works in both portrait and landscape orientations
+  - Dialogs persist through screen rotation
 
 **Note:** New cards are released regularly (~10/month) and the database is actively being updated. The bundled database provides a great starting point, but syncing is recommended to get the latest cards and updates.
 
@@ -53,6 +59,8 @@ This app integrates with [get-diced.com](https://get-diced.com) to:
 - ✅ Load high-quality card images (WebP format, bundled + on-demand)
 - ✅ Export/import decks via shared lists API
 - ✅ Share decks with unique URLs
+- ✅ QR code generation and scanning for collections and decks
+- ✅ Scan QR codes from deck articles on get-diced.com
 
 ## Project Structure
 
@@ -219,6 +227,14 @@ CREATE TABLE folder_cards (
    - **Share**: Share deck to get-diced.com and copy link to clipboard
    - **Import from URL**: Paste a get-diced.com shareable link to import
 
+### 6. QR Code Sharing
+   - **Export**: Tap 📱 icon in collection folders or deck editor to generate QR code
+   - **Scan**: Go to **Scan** tab → Tap "Start Scanner" → Scan QR code
+   - **Import**: After scanning, select destination folder and tap "Import"
+   - **From Website**: Scan QR codes from deck articles on get-diced.com
+   - QR codes work in both portrait and landscape orientations
+   - Import dialogs persist through screen rotation
+
 ## Roadmap
 
 See [PIVOT_PLAN.md](PIVOT_PLAN.md) for the full implementation plan.
@@ -249,6 +265,10 @@ See [PIVOT_PLAN.md](PIVOT_PLAN.md) for the full implementation plan.
 - ✅ Smart card filtering by slot type and deck_card_number
 - ✅ CSV export/import
 - ✅ Share to get-diced.com and import from URLs
+- ✅ QR code generation for collections and decks
+- ✅ QR code scanning with import dialogs
+- ✅ Multi-orientation support (portrait/landscape)
+- ✅ Configuration change handling (rotation)
 
 ### Phase 4: 🔜 Collection Enhancements (Next)
 - Folder search (filter cards within folders)

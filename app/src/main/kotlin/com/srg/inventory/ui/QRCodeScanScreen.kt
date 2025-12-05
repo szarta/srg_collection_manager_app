@@ -9,6 +9,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.QrCodeScanner
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
@@ -34,11 +35,18 @@ fun QRCodeScanScreen(
     val scope = rememberCoroutineScope()
 
     var hasPermission by remember { mutableStateOf(false) }
-    var isLoading by remember { mutableStateOf(false) }
-    var showCollectionImportDialog by remember { mutableStateOf(false) }
-    var showDeckImportDialog by remember { mutableStateOf(false) }
-    var sharedListData by remember { mutableStateOf<SharedListResponse?>(null) }
-    var errorMessage by remember { mutableStateOf<String?>(null) }
+    var isLoading by rememberSaveable { mutableStateOf(false) }
+    var showCollectionImportDialog by rememberSaveable { mutableStateOf(false) }
+    var showDeckImportDialog by rememberSaveable { mutableStateOf(false) }
+
+    // Store minimal data to survive configuration changes
+    var sharedListId by rememberSaveable { mutableStateOf<String?>(null) }
+    var sharedListName by rememberSaveable { mutableStateOf<String?>(null) }
+    var sharedListCardCount by rememberSaveable { mutableStateOf(0) }
+    var sharedListType by rememberSaveable { mutableStateOf<String?>(null) }
+    var sharedListSpectacleType by rememberSaveable { mutableStateOf<String?>(null) }
+
+    var errorMessage by rememberSaveable { mutableStateOf<String?>(null) }
 
     // Collect folders for import dialogs
     val folders by collectionViewModel.foldersWithCounts.collectAsStateWithLifecycle()
@@ -66,7 +74,13 @@ fun QRCodeScanScreen(
                 onLoading = { isLoading = it },
                 onError = { errorMessage = it },
                 onSuccess = { sharedList ->
-                    sharedListData = sharedList
+                    // Store minimal data that survives rotation
+                    sharedListId = sharedList.id
+                    sharedListName = sharedList.name
+                    sharedListCardCount = sharedList.cardUuids?.size ?: 0
+                    sharedListType = sharedList.listType
+                    sharedListSpectacleType = sharedList.deckData?.spectacleType
+
                     when (sharedList.listType) {
                         "COLLECTION" -> showCollectionImportDialog = true
                         "DECK" -> showDeckImportDialog = true
@@ -142,7 +156,7 @@ fun QRCodeScanScreen(
                                 setDesiredBarcodeFormats(ScanOptions.QR_CODE)
                                 setPrompt("Scan a QR code from get-diced.com")
                                 setBeepEnabled(true)
-                                setOrientationLocked(false)
+                                // Don't lock orientation - allow both portrait and landscape
                             }
                             scanLauncher.launch(options)
                         } else {
@@ -212,48 +226,59 @@ fun QRCodeScanScreen(
     }
 
     // Import dialogs
-    if (showCollectionImportDialog && sharedListData != null) {
+    if (showCollectionImportDialog && sharedListId != null) {
         ImportCollectionDialog(
-            sharedListName = sharedListData?.name,
-            cardCount = sharedListData?.cardUuids?.size ?: 0,
+            sharedListName = sharedListName,
+            cardCount = sharedListCardCount,
             folders = folders.map { it.folder },
             onDismiss = {
                 showCollectionImportDialog = false
-                sharedListData = null
+                sharedListId = null
+                sharedListName = null
+                sharedListCardCount = 0
+                sharedListType = null
             },
             onImport = { folderId, folderName ->
-                val sharedId = extractSharedListId(sharedListData?.id ?: "")
-                if (sharedId != null) {
-                    collectionViewModel.importCollectionFromSharedList(sharedId, folderId, folderName)
+                val id = extractSharedListId(sharedListId ?: "")
+                if (id != null) {
+                    collectionViewModel.importCollectionFromSharedList(id, folderId, folderName)
                 }
                 showCollectionImportDialog = false
-                sharedListData = null
+                sharedListId = null
+                sharedListName = null
+                sharedListCardCount = 0
+                sharedListType = null
             }
         )
     }
 
-    if (showDeckImportDialog && sharedListData != null) {
-        val deckData = sharedListData?.deckData
-        if (deckData != null) {
-            ImportDeckDialog(
-                sharedListName = sharedListData?.name,
-                spectacleType = deckData.spectacleType,
-                cardCount = sharedListData?.cardUuids?.size ?: 0,
-                folders = deckFolders.map { it.folder },
-                onDismiss = {
-                    showDeckImportDialog = false
-                    sharedListData = null
-                },
-                onImport = { folderId, folderName ->
-                    val sharedId = extractSharedListId(sharedListData?.id ?: "")
-                    if (sharedId != null) {
-                        deckViewModel.importDeckFromSharedList(sharedId, folderId, folderName)
-                    }
-                    showDeckImportDialog = false
-                    sharedListData = null
+    if (showDeckImportDialog && sharedListId != null && sharedListSpectacleType != null) {
+        ImportDeckDialog(
+            sharedListName = sharedListName,
+            spectacleType = sharedListSpectacleType ?: "NEWMAN",
+            cardCount = sharedListCardCount,
+            folders = deckFolders.map { it.folder },
+            onDismiss = {
+                showDeckImportDialog = false
+                sharedListId = null
+                sharedListName = null
+                sharedListCardCount = 0
+                sharedListType = null
+                sharedListSpectacleType = null
+            },
+            onImport = { folderId, folderName ->
+                val id = extractSharedListId(sharedListId ?: "")
+                if (id != null) {
+                    deckViewModel.importDeckFromSharedList(id, folderId, folderName)
                 }
-            )
-        }
+                showDeckImportDialog = false
+                sharedListId = null
+                sharedListName = null
+                sharedListCardCount = 0
+                sharedListType = null
+                sharedListSpectacleType = null
+            }
+        )
     }
 }
 

@@ -16,6 +16,7 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -50,6 +51,8 @@ fun DeckEditorScreen(
     val cardsInDeck by viewModel.cardsInCurrentDeck.collectAsState()
     val isSharing by viewModel.isSharing.collectAsState()
     val shareUrl by viewModel.shareUrl.collectAsState()
+    val importSuccess by viewModel.importSuccess.collectAsState()
+    val errorMessage by viewModel.errorMessage.collectAsState()
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
 
@@ -57,6 +60,8 @@ fun DeckEditorScreen(
     var showCardPicker by remember { mutableStateOf<DeckSlotType?>(null) }
     var currentSlotNumber by remember { mutableStateOf(0) }
     var showImportUrlDialog by remember { mutableStateOf(false) }
+    var showImportFolderDialog by remember { mutableStateOf(false) }
+    var cardToView by remember { mutableStateOf<Card?>(null) }
 
     // File picker for import
     val importLauncher = rememberLauncherForActivityResult(
@@ -76,6 +81,22 @@ fun DeckEditorScreen(
     DisposableEffect(Unit) {
         onDispose {
             viewModel.clearCurrentDeck()
+        }
+    }
+
+    // Show import success toast
+    LaunchedEffect(importSuccess) {
+        importSuccess?.let { message ->
+            Toast.makeText(context, message, Toast.LENGTH_LONG).show()
+            viewModel.clearImportSuccess()
+        }
+    }
+
+    // Show error toast
+    LaunchedEffect(errorMessage) {
+        errorMessage?.let { message ->
+            Toast.makeText(context, message, Toast.LENGTH_LONG).show()
+            viewModel.clearError()
         }
     }
 
@@ -133,6 +154,10 @@ fun DeckEditorScreen(
                         } else {
                             Icon(Icons.Default.QrCode2, contentDescription = "Share as QR Code")
                         }
+                    }
+                    // Import from folder button
+                    IconButton(onClick = { showImportFolderDialog = true }) {
+                        Icon(Icons.Default.Folder, contentDescription = "Import from Folder")
                     }
                     // Import from URL button
                     IconButton(onClick = { showImportUrlDialog = true }) {
@@ -196,8 +221,12 @@ fun DeckEditorScreen(
                     label = "Entrance Card",
                     card = entrance?.card,
                     onClick = {
-                        showCardPicker = DeckSlotType.ENTRANCE
-                        currentSlotNumber = 0
+                        if (entrance?.card != null) {
+                            cardToView = entrance.card
+                        } else {
+                            showCardPicker = DeckSlotType.ENTRANCE
+                            currentSlotNumber = 0
+                        }
                     },
                     onClear = entrance?.let {
                         { viewModel.removeCardFromDeck(deckId, DeckSlotType.ENTRANCE, 0) }
@@ -214,8 +243,12 @@ fun DeckEditorScreen(
                     label = "Competitor Card",
                     card = competitor?.card,
                     onClick = {
-                        showCardPicker = DeckSlotType.COMPETITOR
-                        currentSlotNumber = 0
+                        if (competitor?.card != null) {
+                            cardToView = competitor.card
+                        } else {
+                            showCardPicker = DeckSlotType.COMPETITOR
+                            currentSlotNumber = 0
+                        }
                     },
                     onClear = competitor?.let {
                         { viewModel.removeCardFromDeck(deckId, DeckSlotType.COMPETITOR, 0) }
@@ -233,8 +266,12 @@ fun DeckEditorScreen(
                     label = "#$slotNumber",
                     card = deckCard?.card,
                     onClick = {
-                        showCardPicker = DeckSlotType.DECK
-                        currentSlotNumber = slotNumber
+                        if (deckCard?.card != null) {
+                            cardToView = deckCard.card
+                        } else {
+                            showCardPicker = DeckSlotType.DECK
+                            currentSlotNumber = slotNumber
+                        }
                     },
                     onClear = deckCard?.let {
                         { viewModel.removeCardFromDeck(deckId, DeckSlotType.DECK, slotNumber) }
@@ -272,7 +309,7 @@ fun DeckEditorScreen(
                     DeckSlotItem(
                         label = "Alternate",
                         card = alternate.card,
-                        onClick = { /* View card details */ },
+                        onClick = { cardToView = alternate.card },
                         onClear = {
                             viewModel.removeCardFromDeck(
                                 deckId,
@@ -334,6 +371,15 @@ fun DeckEditorScreen(
         )
     }
 
+    // Import from folder dialog
+    if (showImportFolderDialog) {
+        ImportFolderDialog(
+            deckId = deckId,
+            viewModel = viewModel,
+            onDismiss = { showImportFolderDialog = false }
+        )
+    }
+
     // Import from URL dialog
     if (showImportUrlDialog) {
         ImportUrlDialog(
@@ -353,6 +399,14 @@ fun DeckEditorScreen(
             url = url,
             title = "Share Deck",
             onDismiss = { viewModel.clearShareUrl() }
+        )
+    }
+
+    // Card detail dialog
+    cardToView?.let { card ->
+        DeckCardDetailDialog(
+            card = card,
+            onDismiss = { cardToView = null }
         )
     }
 }
@@ -388,6 +442,131 @@ fun ImportUrlDialog(
             TextButton(
                 onClick = { onImport(url) },
                 enabled = url.isNotBlank()
+            ) {
+                Text("Import")
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) {
+                Text("Cancel")
+            }
+        }
+    )
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun ImportFolderDialog(
+    deckId: String,
+    viewModel: DeckViewModel,
+    onDismiss: () -> Unit
+) {
+    val context = LocalContext.current
+    val database = remember { UserCardDatabase.getDatabase(context) }
+    val folderDao = remember { database.folderDao() }
+
+    var folders by remember { mutableStateOf<List<Folder>>(emptyList()) }
+    var selectedFolderId by remember { mutableStateOf<String?>(null) }
+    var isLoading by remember { mutableStateOf(true) }
+
+    // Load folders
+    LaunchedEffect(Unit) {
+        isLoading = true
+        folders = folderDao.getAllFoldersList()
+        isLoading = false
+    }
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("Import from Collection Folder") },
+        text = {
+            Column(
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Text(
+                    text = "Select a collection folder to import cards from. Cards will be automatically slotted based on their type.",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+
+                Spacer(modifier = Modifier.height(16.dp))
+
+                if (isLoading) {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(200.dp),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        CircularProgressIndicator()
+                    }
+                } else if (folders.isEmpty()) {
+                    Text(
+                        text = "No collection folders found",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                } else {
+                    // Folder selection list
+                    LazyColumn(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(300.dp),
+                        verticalArrangement = Arrangement.spacedBy(4.dp)
+                    ) {
+                        items(folders, key = { it.id }) { folder ->
+                            Surface(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .clickable { selectedFolderId = folder.id },
+                                color = if (selectedFolderId == folder.id) {
+                                    MaterialTheme.colorScheme.primaryContainer
+                                } else {
+                                    MaterialTheme.colorScheme.surface
+                                },
+                                shape = MaterialTheme.shapes.small
+                            ) {
+                                Row(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .padding(12.dp),
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    RadioButton(
+                                        selected = selectedFolderId == folder.id,
+                                        onClick = { selectedFolderId = folder.id }
+                                    )
+                                    Spacer(modifier = Modifier.width(8.dp))
+                                    Column(modifier = Modifier.weight(1f)) {
+                                        Text(
+                                            text = folder.name,
+                                            style = MaterialTheme.typography.bodyMedium,
+                                            fontWeight = FontWeight.Medium
+                                        )
+                                        if (folder.isDefault) {
+                                            Text(
+                                                text = "Default",
+                                                style = MaterialTheme.typography.bodySmall,
+                                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                                            )
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        confirmButton = {
+            TextButton(
+                onClick = {
+                    selectedFolderId?.let { folderId ->
+                        viewModel.importFolderToDeck(deckId, folderId)
+                        onDismiss()
+                    }
+                },
+                enabled = selectedFolderId != null
             ) {
                 Text("Import")
             }
@@ -855,6 +1034,185 @@ private suspend fun shareDeckToWeb(
                 Toast.makeText(context, "Share failed: ${e.message}", Toast.LENGTH_LONG).show()
             }
         }
+    }
+}
+
+/**
+ * Dialog showing full card details including image, stats, rules, and errata
+ */
+@Composable
+private fun DeckCardDetailDialog(
+    card: Card,
+    onDismiss: () -> Unit
+) {
+    val context = LocalContext.current
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = {
+            Column {
+                Text(card.name)
+                Spacer(modifier = Modifier.height(4.dp))
+                Surface(
+                    color = MaterialTheme.colorScheme.secondaryContainer,
+                    shape = MaterialTheme.shapes.extraSmall
+                ) {
+                    Text(
+                        text = card.cardType.replace("Card", ""),
+                        style = MaterialTheme.typography.labelSmall,
+                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
+                    )
+                }
+            }
+        },
+        text = {
+            LazyColumn(
+                verticalArrangement = Arrangement.spacedBy(12.dp)
+            ) {
+                // Card image
+                item {
+                    coil.compose.AsyncImage(
+                        model = com.srg.inventory.utils.ImageUtils.buildCardImageRequest(context, card.dbUuid, thumbnail = false),
+                        contentDescription = card.name,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .aspectRatio(0.7f),
+                        contentScale = ContentScale.Fit
+                    )
+                }
+
+                // Stats for competitors
+                if (card.isCompetitor) {
+                    item {
+                        Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                            Text(
+                                text = "Stats",
+                                style = MaterialTheme.typography.labelMedium,
+                                fontWeight = FontWeight.Bold
+                            )
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.SpaceAround
+                            ) {
+                                CompetitorStatItem("PWR", card.power)
+                                CompetitorStatItem("AGI", card.agility)
+                                CompetitorStatItem("STR", card.strike)
+                                CompetitorStatItem("SUB", card.submission)
+                                CompetitorStatItem("GRP", card.grapple)
+                                CompetitorStatItem("TEC", card.technique)
+                            }
+                            card.division?.let {
+                                Text(
+                                    text = "Division: $it",
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                            }
+                        }
+                    }
+                }
+
+                // Main deck properties
+                if (card.isMainDeck) {
+                    item {
+                        Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                            Text(
+                                text = "Properties",
+                                style = MaterialTheme.typography.labelMedium,
+                                fontWeight = FontWeight.Bold
+                            )
+                            card.deckCardNumber?.let {
+                                Text("Deck #: $it", style = MaterialTheme.typography.bodySmall)
+                            }
+                            card.atkType?.let {
+                                Text("Attack Type: $it", style = MaterialTheme.typography.bodySmall)
+                            }
+                            card.playOrder?.let {
+                                Text("Play Order: $it", style = MaterialTheme.typography.bodySmall)
+                            }
+                        }
+                    }
+                }
+
+                // Rules text
+                card.rulesText?.let { rules ->
+                    item {
+                        Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                            Text(
+                                text = "Rules",
+                                style = MaterialTheme.typography.labelMedium,
+                                fontWeight = FontWeight.Bold
+                            )
+                            Text(
+                                text = rules,
+                                style = MaterialTheme.typography.bodySmall
+                            )
+                        }
+                    }
+                }
+
+                // Errata
+                card.errataText?.let { errata ->
+                    item {
+                        Surface(
+                            color = MaterialTheme.colorScheme.secondaryContainer,
+                            shape = MaterialTheme.shapes.small
+                        ) {
+                            Column(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(8.dp),
+                                verticalArrangement = Arrangement.spacedBy(4.dp)
+                            ) {
+                                Text(
+                                    text = "Errata",
+                                    style = MaterialTheme.typography.labelMedium,
+                                    fontWeight = FontWeight.Bold
+                                )
+                                Text(
+                                    text = errata,
+                                    style = MaterialTheme.typography.bodySmall
+                                )
+                            }
+                        }
+                    }
+                }
+
+                // Release set
+                card.releaseSet?.let { set ->
+                    item {
+                        Text(
+                            text = "Set: $set",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                }
+            }
+        },
+        confirmButton = {
+            TextButton(onClick = onDismiss) {
+                Text("Close")
+            }
+        }
+    )
+}
+
+@Composable
+private fun CompetitorStatItem(label: String, value: Int?) {
+    Column(
+        horizontalAlignment = Alignment.CenterHorizontally
+    ) {
+        Text(
+            text = label,
+            style = MaterialTheme.typography.labelSmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant
+        )
+        Text(
+            text = value?.toString() ?: "-",
+            style = MaterialTheme.typography.bodyMedium,
+            fontWeight = FontWeight.Bold
+        )
     }
 }
 

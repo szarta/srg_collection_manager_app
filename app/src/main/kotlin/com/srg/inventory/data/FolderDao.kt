@@ -12,6 +12,9 @@ interface FolderDao {
     @Query("SELECT * FROM folders ORDER BY display_order ASC, created_at ASC")
     fun getAllFolders(): Flow<List<Folder>>
 
+    @Query("SELECT * FROM folders ORDER BY display_order ASC, created_at ASC")
+    suspend fun getAllFoldersList(): List<Folder>
+
     @Query("SELECT * FROM folders WHERE is_default = 1 ORDER BY display_order ASC")
     fun getDefaultFolders(): Flow<List<Folder>>
 
