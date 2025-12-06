@@ -105,11 +105,11 @@ fun FolderDetailScreen(
                     IconButton(onClick = { showSearchDialog = true }) {
                         Icon(Icons.Default.Search, contentDescription = "Search in folder")
                     }
-                    // Import from CSV
-                    IconButton(onClick = { csvImportLauncher.launch("text/*") }) {
-                        Icon(Icons.Default.FileUpload, contentDescription = "Import from CSV")
+                    // Import from CSV (download from file)
+                    IconButton(onClick = { csvImportLauncher.launch("text/csv") }) {
+                        Icon(Icons.Default.FileDownload, contentDescription = "Import from CSV")
                     }
-                    // Export to CSV
+                    // Export to CSV (upload/share to file)
                     if (cardsWithQuantities.isNotEmpty()) {
                         IconButton(onClick = {
                             exportFolderToCsv(
@@ -118,7 +118,7 @@ fun FolderDetailScreen(
                                 cards = cardsWithQuantities
                             )
                         }) {
-                            Icon(Icons.Default.FileDownload, contentDescription = "Export to CSV")
+                            Icon(Icons.Default.FileUpload, contentDescription = "Export to CSV")
                         }
                     }
                     // Share as QR Code

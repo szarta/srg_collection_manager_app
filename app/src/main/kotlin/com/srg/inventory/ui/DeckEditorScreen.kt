@@ -168,10 +168,10 @@ fun DeckEditorScreen(
                             DropdownMenuItem(
                                 text = { Text("Import Deck from CSV") },
                                 onClick = {
-                                    importLauncher.launch("text/*")
+                                    importLauncher.launch("text/csv")
                                     showImportMenu = false
                                 },
-                                leadingIcon = { Icon(Icons.Default.FileUpload, contentDescription = null) }
+                                leadingIcon = { Icon(Icons.Default.FileDownload, contentDescription = null) }
                             )
                             DropdownMenuItem(
                                 text = { Text("Import Cards from Collection") },
