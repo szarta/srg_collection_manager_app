@@ -63,6 +63,7 @@ fun DeckEditorScreen(
     var showImportFolderDialog by remember { mutableStateOf(false) }
     var showImportMenu by remember { mutableStateOf(false) }
     var showExportDialog by remember { mutableStateOf(false) }
+    var showCollectionSearch by remember { mutableStateOf(false) }
     var cardToView by remember { mutableStateOf<Card?>(null) }
 
     // File picker for import
@@ -199,34 +200,11 @@ fun DeckEditorScreen(
                         Text("Export")
                     }
 
-                    // Spectacle type selector
-                    Box(modifier = Modifier.weight(1f)) {
-                        OutlinedButton(
-                            onClick = { showSpectacleMenu = true },
-                            modifier = Modifier.fillMaxWidth()
-                        ) {
-                            Text(deck?.spectacleType?.name ?: "VALIANT")
-                            Icon(Icons.Default.ArrowDropDown, contentDescription = null)
-                        }
-                        DropdownMenu(
-                            expanded = showSpectacleMenu,
-                            onDismissRequest = { showSpectacleMenu = false }
-                        ) {
-                            DropdownMenuItem(
-                                text = { Text("Valiant") },
-                                onClick = {
-                                    viewModel.updateDeckSpectacleType(deckId, SpectacleType.VALIANT)
-                                    showSpectacleMenu = false
-                                }
-                            )
-                            DropdownMenuItem(
-                                text = { Text("Newman") },
-                                onClick = {
-                                    viewModel.updateDeckSpectacleType(deckId, SpectacleType.NEWMAN)
-                                    showSpectacleMenu = false
-                                }
-                            )
-                        }
+                    // Search in collection button
+                    IconButton(
+                        onClick = { showImportFolderDialog = true }
+                    ) {
+                        Icon(Icons.Default.Search, contentDescription = "Search collection")
                     }
                 }
             }
@@ -343,6 +321,63 @@ fun DeckEditorScreen(
                                 DeckSlotType.ALTERNATE,
                                 alternate.slotNumber
                             )
+                        }
+                    )
+                }
+            }
+
+            // Spectacles selector
+            item {
+                Card(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clickable { showSpectacleMenu = true },
+                    colors = CardDefaults.cardColors(
+                        containerColor = MaterialTheme.colorScheme.surfaceVariant
+                    )
+                ) {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(12.dp),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Column {
+                            Text(
+                                text = "Spectacles",
+                                style = MaterialTheme.typography.labelMedium,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                            Text(
+                                text = deck?.spectacleType?.name ?: "VALIANT",
+                                style = MaterialTheme.typography.bodyLarge,
+                                fontWeight = FontWeight.Medium
+                            )
+                        }
+                        Icon(
+                            Icons.Default.ArrowDropDown,
+                            contentDescription = null,
+                            tint = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                }
+                DropdownMenu(
+                    expanded = showSpectacleMenu,
+                    onDismissRequest = { showSpectacleMenu = false }
+                ) {
+                    DropdownMenuItem(
+                        text = { Text("Valiant") },
+                        onClick = {
+                            viewModel.updateDeckSpectacleType(deckId, SpectacleType.VALIANT)
+                            showSpectacleMenu = false
+                        }
+                    )
+                    DropdownMenuItem(
+                        text = { Text("Newman") },
+                        onClick = {
+                            viewModel.updateDeckSpectacleType(deckId, SpectacleType.NEWMAN)
+                            showSpectacleMenu = false
                         }
                     )
                 }

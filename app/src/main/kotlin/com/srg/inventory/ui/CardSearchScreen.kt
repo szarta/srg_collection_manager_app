@@ -53,14 +53,10 @@ fun CardSearchScreen(
         topBar = {
             TopAppBar(
                 title = {
-                    Column {
-                        Text("Card Search")
-                        Text(
-                            text = "$cardCount cards",
-                            style = MaterialTheme.typography.labelSmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-                    }
+                    Text(
+                        text = "$cardCount cards",
+                        style = MaterialTheme.typography.titleLarge
+                    )
                 }
             )
         }

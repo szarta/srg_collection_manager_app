@@ -94,14 +94,6 @@ fun AddCardToFolderScreen(
                 modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)
             )
 
-            // Collection folder filter
-            CollectionFolderFilter(
-                folders = foldersWithCounts.map { it.folder },
-                selectedFolderId = inCollectionFolderId,
-                onFolderSelected = { viewModel.setInCollectionFolderFilter(it) },
-                modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)
-            )
-
             // Filters
             FiltersSection(
                 cardTypes = cardTypes,
