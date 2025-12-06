@@ -80,6 +80,10 @@
 5. `bb49421` - Swap import/export icons and filter CSV imports
 6. `6324a21` - Update app name to SRG Supershow Collection Manager
 
+**Version Update:**
+- **Version**: 1.0.9 (versionCode 12)
+- **Previous**: 1.0.8 (versionCode 11)
+
 **Release Build:**
 - **AAB Created**: `app/build/outputs/bundle/release/app-release.aab` (181MB)
 - **Ready For**: Google Play internal testing track
