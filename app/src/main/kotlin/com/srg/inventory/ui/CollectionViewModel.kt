@@ -126,14 +126,23 @@ class CollectionViewModel(application: Application) : AndroidViewModel(applicati
 
     // Filtered card search results (for adding cards to folder)
     val searchResults: StateFlow<List<Card>> = combine(
-        _searchQuery,
-        _searchScope,
-        _selectedCardType,
-        _selectedAtkType,
-        _selectedPlayOrder,
+        combine(
+            _searchQuery,
+            _searchScope,
+            _selectedCardType,
+            _selectedAtkType,
+            _selectedPlayOrder
+        ) { arrayOfValues ->
+            arrayOfValues
+        },
         _selectedDivision,
         _inCollectionFolderId
-    ) { query, scope, cardType, atkType, playOrder, division, collectionFolderId ->
+    ) { arrayOfValues, division, collectionFolderId ->
+        val query = arrayOfValues[0] as String
+        val scope = arrayOfValues[1] as String
+        val cardType = arrayOfValues[2] as String?
+        val atkType = arrayOfValues[3] as String?
+        val playOrder = arrayOfValues[4] as String?
         SearchFilters(query, scope, cardType, atkType, playOrder, division, collectionFolderId)
     }.flatMapLatest { filters ->
         // Return empty list if no search query and no filters

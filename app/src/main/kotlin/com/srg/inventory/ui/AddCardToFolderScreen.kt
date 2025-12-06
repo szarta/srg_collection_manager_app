@@ -190,6 +190,7 @@ fun SearchBar(
     )
 }
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun SearchScopeSelector(
     selectedScope: String,
@@ -230,6 +231,7 @@ fun SearchScopeSelector(
     }
 }
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun CollectionFolderFilter(
     folders: List<Folder>,
