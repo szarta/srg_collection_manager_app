@@ -262,7 +262,7 @@ fun SettingsScreen(
                         fontWeight = FontWeight.Bold
                     )
                     Text(
-                        text = "SRG Collection Manager",
+                        text = "SRG Supershow Collection Manager",
                         style = MaterialTheme.typography.bodyLarge
                     )
                     Text(
@@ -272,7 +272,7 @@ fun SettingsScreen(
                     )
                     Spacer(modifier = Modifier.height(4.dp))
                     Text(
-                        text = "Manage your SRG wrestling card collection and build decks.",
+                        text = "Manage your SRG Supershow wrestling card collection and build decks.",
                         style = MaterialTheme.typography.bodyMedium,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
