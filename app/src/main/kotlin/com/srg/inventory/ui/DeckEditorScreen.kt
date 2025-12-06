@@ -63,7 +63,6 @@ fun DeckEditorScreen(
     var showImportFolderDialog by remember { mutableStateOf(false) }
     var showImportMenu by remember { mutableStateOf(false) }
     var showExportDialog by remember { mutableStateOf(false) }
-    var showCollectionSearch by remember { mutableStateOf(false) }
     var cardToView by remember { mutableStateOf<Card?>(null) }
 
     // File picker for import
@@ -198,13 +197,6 @@ fun DeckEditorScreen(
                         )
                         Spacer(modifier = Modifier.width(4.dp))
                         Text("Export")
-                    }
-
-                    // Search in collection button
-                    IconButton(
-                        onClick = { showImportFolderDialog = true }
-                    ) {
-                        Icon(Icons.Default.Search, contentDescription = "Search collection")
                     }
                 }
             }
