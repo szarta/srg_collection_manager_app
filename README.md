@@ -1,6 +1,6 @@
-# SRG Collection Manager
+# SRG Supershow Collection Manager
 
-Android app for managing your SRG (Super Ring of Glory) wrestling card collection and building decks.
+Android app for managing your SRG Supershow wrestling card collection and building decks.
 
 ## Features
 
@@ -13,7 +13,11 @@ Android app for managing your SRG (Super Ring of Glory) wrestling card collectio
 - **Folder-Based Collection Management** - Organize cards in custom folders (Owned, Wanted, Trade, + custom)
 - **Card Database Sync** - Sync from get-diced.com to get latest cards and updates (Settings screen)
 - **Advanced Card Search** - Search with type-specific filters (attack type, play order, division, etc.)
+  - ✨ **Search Scope Selector** - Filter by All Fields, Name Only, Rules Only, or Tags Only
+  - Dynamic search placeholder updates based on selected scope
 - **Card Viewer** - Browse and view any card with full details (image, stats, rules)
+- **Folder Search** - ✨ Search within specific collection folders by name, rules, or tags (magnifying glass icon)
+- **Smart Quantity Entry** - ✨ +/- buttons (max 999) instead of keyboard for card quantities
 - **Edit Quantity Dialog** - +/- buttons to adjust quantity, delete option to remove cards
 - **Multi-Folder Support** - Same card can exist in multiple folders with independent quantities
 - **Offline-First** - Works offline with bundled database + images, sync for latest updates
@@ -23,8 +27,10 @@ Android app for managing your SRG (Super Ring of Glory) wrestling card collectio
   - Deck folders (Singles, Tornado, Trios, Tag, custom)
   - Entrance, Competitor, Deck cards 1-30, Alternates
   - Smart card filtering by slot type and deck_card_number
-  - Spectacle type selector (Newman/Valiant)
-- **Deck CSV Export/Import** - Export decks to CSV, import from CSV files
+  - Spectacle type selector (Newman/Valiant) in Alternates section
+  - ✨ **Improved Import/Export UI** - Clear labels and export dialog with QR/CSV options
+  - ✨ **Intuitive Icons** - Down arrow = Import (pull from file), Up arrow = Export (push to file)
+- **Deck CSV Export/Import** - Export decks to CSV, import from CSV files (filtered to .csv only)
 - **Deck Sharing** - Share decks to get-diced.com, import from shareable URLs
 - **QR Code Import/Export** - ✨ NEW! Generate QR codes for collections and decks, scan QR codes to import
   - Export collections/decks as QR codes with shareable URLs
@@ -35,9 +41,14 @@ Android app for managing your SRG (Super Ring of Glory) wrestling card collectio
 
 **Note:** New cards are released regularly (~10/month) and the database is actively being updated. The bundled database provides a great starting point, but syncing is recommended to get the latest cards and updates.
 
+### UI/UX Improvements
+- ✨ **Scrollable Settings** - No more text cutoff for database info
+- ✨ **Clean Viewer UI** - Simplified header (no "Search for cards" text when empty)
+- ✨ **Enhanced Branding** - Clear "SRG Supershow Collection Manager" naming throughout
+
 ### 🔜 Coming Soon
-- **Folder Search** - Search within specific collection folders
 - **Deck Validation** - Check deck completeness and rules
+- **Bulk Operations** - Add/remove multiple cards at once
 
 ## Tech Stack
 
@@ -212,8 +223,10 @@ CREATE TABLE folder_cards (
    - Same card can be in multiple folders with different quantities
 
 ### 4. Manage Cards in Folders
-   - Tap **🔍 Search** icon to view full card details (image, stats, rules)
+   - Tap **🔍 Search** icon in folder header to search within that specific folder
+   - Tap a card to view full card details (image, stats, rules)
    - Tap **✏️ Edit** icon to change quantity (+/- buttons) or remove card
+   - Export/Import folder contents to CSV (down arrow = import, up arrow = export)
    - Cards remain in database even when removed from all folders
 
 ### 5. Build Decks
@@ -222,10 +235,10 @@ CREATE TABLE folder_cards (
    - Tap deck to open editor
    - Add cards to slots: Entrance, Competitor, Deck 1-30, Alternates
    - Cards are smart-filtered by slot type (e.g., slot #5 shows only cards with deck_card_number=5)
-   - Select spectacle type (Newman/Valiant) in top bar
-   - **Export/Import**: Use toolbar icons for CSV export/import
-   - **Share**: Share deck to get-diced.com and copy link to clipboard
-   - **Import from URL**: Paste a get-diced.com shareable link to import
+   - Select spectacle type (Newman/Valiant) in Alternates section
+   - **Import**: Dropdown menu with 3 options (URL/QR, CSV, Collection)
+   - **Export**: Dialog with QR Code or CSV export options
+   - **Share**: Generate QR code or shareable URL to get-diced.com
 
 ### 6. QR Code Sharing
    - **Export**: Tap 📱 icon in collection folders or deck editor to generate QR code
@@ -270,10 +283,12 @@ See [PIVOT_PLAN.md](PIVOT_PLAN.md) for the full implementation plan.
 - ✅ Multi-orientation support (portrait/landscape)
 - ✅ Configuration change handling (rotation)
 
-### Phase 4: 🔜 Collection Enhancements (Next)
-- Folder search (filter cards within folders)
-- Deck validation and statistics
-- Bulk operations
+### Phase 4: ✅ Collection Enhancements (In Progress)
+- ✅ Folder search (filter cards within specific folders)
+- ✅ Advanced search scope selector (All/Name/Rules/Tags)
+- ✅ UI/UX improvements (quantity entry, settings, deck editor)
+- 🔜 Deck validation and statistics
+- 🔜 Bulk operations
 
 ### Phase 5: 🔜 UI/UX Polish
 - Grid view for card browsing

@@ -1,3 +1,101 @@
+# Session Notes - Dec 6, 2025
+
+## What Was Completed This Session ✅
+
+### UI/UX Enhancements and Advanced Search (COMPLETED)
+
+**Goal:** Improve user experience with better search capabilities, cleaner UI, and intuitive controls
+
+**Features Implemented:**
+
+1. **Smart Quantity Entry** (`AddCardToFolderScreen.kt:527-610`)
+   - **Before**: Keyboard text input for quantity
+   - **After**: +/- buttons with large centered number display
+   - **Max**: 999 cards (buttons auto-disable at boundaries)
+   - **UX**: No keyboard needed, faster input, clearer limits
+
+2. **Scrollable Settings Screen** (`SettingsScreen.kt:55`)
+   - **Problem**: Database info text getting cut off
+   - **Fix**: Added `verticalScroll(rememberScrollState())` to main Column
+   - **Result**: All settings content fully accessible
+
+3. **Deck Import/Export UI Redesign** (`DeckEditorScreen.kt:142-202`)
+   - **Import Button**: Dropdown menu with 3 clear options:
+     - Import Deck from URL/QR (Link icon)
+     - Import Deck from CSV (Down arrow icon)
+     - Import Cards from Collection (Folder icon)
+   - **Export Button**: Opens dialog with 2 well-described options:
+     - QR Code / Shareable Link
+     - Export to CSV
+   - **Spectacles Selector**: Moved from top bar to Alternates section (matches other slots)
+
+4. **Advanced Search Scope Selector** (`AddCardToFolderScreen.kt:193-232`)
+   - **Feature**: Filter chips to search in specific fields
+   - **Options**: All Fields | Name | Rules | Tags
+   - **Dynamic Placeholder**: Updates based on selected scope
+   - **Implementation**:
+     - Database query with CASE statement (`CardDao.kt:46-67`)
+     - ViewModel state management (`CollectionViewModel.kt`)
+     - Clean UI with FilterChips
+
+5. **Collection Folder Search** (`FolderDetailScreen.kt:104-354`)
+   - **Location**: Magnifying glass icon next to Import/Export/QR in folder header
+   - **Feature**: Search within specific folder by name, rules, or tags
+   - **UI**: Full-screen dialog with search bar, results count, card list
+   - **UX**: Click card to view details, close to return to folder
+
+6. **Viewer Screen Cleanup** (`CardSearchScreen.kt:52-62`, `AddCardToFolderScreen.kt:493-524`)
+   - **Header**: Removed "Card Search" text, show only card count
+   - **Empty State**: No text shown when no search query (just filter inputs)
+   - **After Search**: Shows "No cards found" only when user has typed a query
+   - **Result**: Prevents text cutoff, cleaner initial view
+
+7. **Icon Swap for Import/Export** (`FolderDetailScreen.kt:110, 121`, `DeckEditorScreen.kt:174`)
+   - **Better Metaphor**:
+     - Import (pulling data IN) = Down arrow (FileDownload)
+     - Export (sending data OUT) = Up arrow (FileUpload)
+   - **CSV Filter**: Changed file picker from `text/*` to `text/csv`
+   - **Applied To**: Folder CSV import/export, Deck CSV import
+
+8. **App Branding Update** (`SettingsScreen.kt:265, 275`)
+   - **Name**: "SRG Supershow Collection Manager" (was "SRG Collection Manager")
+   - **Description**: "Manage your SRG Supershow wrestling card collection and build decks"
+   - **Clarity**: Makes it clear this is for Supershow by SRG Universe
+
+**Files Modified:**
+- `app/src/main/kotlin/com/srg/inventory/ui/AddCardToFolderScreen.kt` - Quantity entry, search scope, empty state
+- `app/src/main/kotlin/com/srg/inventory/ui/SettingsScreen.kt` - Scrollable, branding
+- `app/src/main/kotlin/com/srg/inventory/ui/DeckEditorScreen.kt` - Import/Export UI, Spectacles move, icon swap
+- `app/src/main/kotlin/com/srg/inventory/ui/FolderDetailScreen.kt` - Folder search, icon swap
+- `app/src/main/kotlin/com/srg/inventory/ui/CardSearchScreen.kt` - Viewer cleanup
+- `app/src/main/kotlin/com/srg/inventory/data/CardDao.kt` - Search scope query
+- `app/src/main/kotlin/com/srg/inventory/data/CollectionRepository.kt` - Search scope support
+- `app/src/main/kotlin/com/srg/inventory/ui/CollectionViewModel.kt` - Search scope state
+
+**Git Commits:**
+1. `35fb879` - Improve UI and add advanced search features
+2. `5b86ac3` - Fix compilation errors for experimental Material3 APIs
+3. `7a520fc` - Refine UI based on user feedback
+4. `aaf5b9f` - Fix UI based on correct requirements
+5. `bb49421` - Swap import/export icons and filter CSV imports
+6. `6324a21` - Update app name to SRG Supershow Collection Manager
+
+**Release Build:**
+- **AAB Created**: `app/build/outputs/bundle/release/app-release.aab` (181MB)
+- **Ready For**: Google Play internal testing track
+
+**User Experience Improvements:**
+- ✅ Faster card quantity entry without keyboard
+- ✅ All settings accessible (no text cutoff)
+- ✅ Clearer deck import/export with descriptive options
+- ✅ Search specific folders for targeted card finding
+- ✅ Filter search to exact fields (name/rules/tags only)
+- ✅ Intuitive import/export icons (down=in, up=out)
+- ✅ Clean viewer with no unnecessary text
+- ✅ Clear Supershow branding
+
+---
+
 # Session Notes - Dec 1, 2025
 
 ## What Was Completed This Session ✅
