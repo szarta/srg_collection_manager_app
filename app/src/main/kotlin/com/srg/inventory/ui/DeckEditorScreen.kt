@@ -61,6 +61,8 @@ fun DeckEditorScreen(
     var currentSlotNumber by remember { mutableStateOf(0) }
     var showImportUrlDialog by remember { mutableStateOf(false) }
     var showImportFolderDialog by remember { mutableStateOf(false) }
+    var showImportMenu by remember { mutableStateOf(false) }
+    var showExportDialog by remember { mutableStateOf(false) }
     var cardToView by remember { mutableStateOf<Card?>(null) }
 
     // File picker for import
@@ -133,51 +135,76 @@ fun DeckEditorScreen(
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(horizontal = 8.dp, vertical = 4.dp),
-                    horizontalArrangement = Arrangement.SpaceEvenly,
+                        .padding(horizontal = 16.dp, vertical = 8.dp),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    // Share as QR Code button
-                    IconButton(
-                        onClick = {
-                            deck?.let {
-                                viewModel.shareDeckAsQRCode(deckId, it.name, it.spectacleType)
-                            }
-                        },
-                        enabled = !isSharing && cardsInDeck.isNotEmpty()
-                    ) {
-                        if (isSharing) {
-                            CircularProgressIndicator(
-                                modifier = Modifier.size(24.dp),
-                                strokeWidth = 2.dp
+                    // Import button with dropdown menu
+                    Box(modifier = Modifier.weight(1f)) {
+                        Button(
+                            onClick = { showImportMenu = true },
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Icon(
+                                Icons.Default.FileDownload,
+                                contentDescription = null,
+                                modifier = Modifier.size(18.dp)
                             )
-                        } else {
-                            Icon(Icons.Default.QrCode2, contentDescription = "Share as QR Code")
+                            Spacer(modifier = Modifier.width(4.dp))
+                            Text("Import")
+                        }
+                        DropdownMenu(
+                            expanded = showImportMenu,
+                            onDismissRequest = { showImportMenu = false }
+                        ) {
+                            DropdownMenuItem(
+                                text = { Text("Import Deck from URL/QR") },
+                                onClick = {
+                                    showImportUrlDialog = true
+                                    showImportMenu = false
+                                },
+                                leadingIcon = { Icon(Icons.Default.Link, contentDescription = null) }
+                            )
+                            DropdownMenuItem(
+                                text = { Text("Import Deck from CSV") },
+                                onClick = {
+                                    importLauncher.launch("text/*")
+                                    showImportMenu = false
+                                },
+                                leadingIcon = { Icon(Icons.Default.FileUpload, contentDescription = null) }
+                            )
+                            DropdownMenuItem(
+                                text = { Text("Import Cards from Collection") },
+                                onClick = {
+                                    showImportFolderDialog = true
+                                    showImportMenu = false
+                                },
+                                leadingIcon = { Icon(Icons.Default.Folder, contentDescription = null) }
+                            )
                         }
                     }
-                    // Import from folder button
-                    IconButton(onClick = { showImportFolderDialog = true }) {
-                        Icon(Icons.Default.Folder, contentDescription = "Import from Folder")
-                    }
-                    // Import from URL button
-                    IconButton(onClick = { showImportUrlDialog = true }) {
-                        Icon(Icons.Default.Link, contentDescription = "Import from URL")
-                    }
-                    // Import CSV button
-                    IconButton(onClick = { importLauncher.launch("text/*") }) {
-                        Icon(Icons.Default.FileUpload, contentDescription = "Import CSV")
-                    }
+
                     // Export button
-                    IconButton(onClick = {
-                        scope.launch {
-                            exportDeckToCsv(context, deck, cardsInDeck)
-                        }
-                    }) {
-                        Icon(Icons.Default.FileDownload, contentDescription = "Export CSV")
+                    Button(
+                        onClick = { showExportDialog = true },
+                        enabled = cardsInDeck.isNotEmpty(),
+                        modifier = Modifier.weight(1f)
+                    ) {
+                        Icon(
+                            Icons.Default.FileUpload,
+                            contentDescription = null,
+                            modifier = Modifier.size(18.dp)
+                        )
+                        Spacer(modifier = Modifier.width(4.dp))
+                        Text("Export")
                     }
+
                     // Spectacle type selector
-                    Box {
-                        TextButton(onClick = { showSpectacleMenu = true }) {
+                    Box(modifier = Modifier.weight(1f)) {
+                        OutlinedButton(
+                            onClick = { showSpectacleMenu = true },
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
                             Text(deck?.spectacleType?.name ?: "VALIANT")
                             Icon(Icons.Default.ArrowDropDown, contentDescription = null)
                         }
@@ -393,6 +420,28 @@ fun DeckEditorScreen(
         )
     }
 
+    // Export dialog
+    if (showExportDialog) {
+        ExportDeckDialog(
+            deck = deck,
+            cardsInDeck = cardsInDeck,
+            isSharing = isSharing,
+            onDismiss = { showExportDialog = false },
+            onExportQRCode = {
+                deck?.let {
+                    viewModel.shareDeckAsQRCode(deckId, it.name, it.spectacleType)
+                }
+                showExportDialog = false
+            },
+            onExportCSV = {
+                scope.launch {
+                    exportDeckToCsv(context, deck, cardsInDeck)
+                }
+                showExportDialog = false
+            }
+        )
+    }
+
     // QR Code share dialog
     shareUrl?.let { url ->
         QRCodeDialog(
@@ -409,6 +458,128 @@ fun DeckEditorScreen(
             onDismiss = { cardToView = null }
         )
     }
+}
+
+@Composable
+fun ExportDeckDialog(
+    deck: Deck?,
+    cardsInDeck: List<DeckCardWithDetails>,
+    isSharing: Boolean,
+    onDismiss: () -> Unit,
+    onExportQRCode: () -> Unit,
+    onExportCSV: () -> Unit
+) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("Export Deck") },
+        text = {
+            Column(
+                modifier = Modifier.fillMaxWidth(),
+                verticalArrangement = Arrangement.spacedBy(12.dp)
+            ) {
+                Text(
+                    text = "Choose how you want to export \"${deck?.name ?: "this deck"}\"",
+                    style = MaterialTheme.typography.bodyMedium
+                )
+
+                // QR Code option
+                Card(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clickable(enabled = !isSharing) { onExportQRCode() },
+                    colors = CardDefaults.cardColors(
+                        containerColor = MaterialTheme.colorScheme.secondaryContainer
+                    )
+                ) {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(16.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Icon(
+                            Icons.Default.QrCode2,
+                            contentDescription = null,
+                            modifier = Modifier.size(32.dp),
+                            tint = MaterialTheme.colorScheme.onSecondaryContainer
+                        )
+                        Spacer(modifier = Modifier.width(16.dp))
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text(
+                                text = "QR Code / Shareable Link",
+                                style = MaterialTheme.typography.titleSmall,
+                                fontWeight = FontWeight.Bold
+                            )
+                            Text(
+                                text = "Generate a QR code and URL to share online",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSecondaryContainer
+                            )
+                        }
+                        if (isSharing) {
+                            CircularProgressIndicator(
+                                modifier = Modifier.size(24.dp),
+                                strokeWidth = 2.dp
+                            )
+                        } else {
+                            Icon(
+                                Icons.Default.ChevronRight,
+                                contentDescription = null,
+                                tint = MaterialTheme.colorScheme.onSecondaryContainer
+                            )
+                        }
+                    }
+                }
+
+                // CSV option
+                Card(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clickable { onExportCSV() },
+                    colors = CardDefaults.cardColors(
+                        containerColor = MaterialTheme.colorScheme.secondaryContainer
+                    )
+                ) {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(16.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Icon(
+                            Icons.Default.FileDownload,
+                            contentDescription = null,
+                            modifier = Modifier.size(32.dp),
+                            tint = MaterialTheme.colorScheme.onSecondaryContainer
+                        )
+                        Spacer(modifier = Modifier.width(16.dp))
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text(
+                                text = "Export to CSV",
+                                style = MaterialTheme.typography.titleSmall,
+                                fontWeight = FontWeight.Bold
+                            )
+                            Text(
+                                text = "Save deck as a CSV file for local backup",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSecondaryContainer
+                            )
+                        }
+                        Icon(
+                            Icons.Default.ChevronRight,
+                            contentDescription = null,
+                            tint = MaterialTheme.colorScheme.onSecondaryContainer
+                        )
+                    }
+                }
+            }
+        },
+        confirmButton = {
+            TextButton(onClick = onDismiss) {
+                Text("Cancel")
+            }
+        }
+    )
 }
 
 @Composable

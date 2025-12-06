@@ -106,6 +106,9 @@ class CollectionViewModel(application: Application) : AndroidViewModel(applicati
     private val _searchQuery = MutableStateFlow("")
     val searchQuery: StateFlow<String> = _searchQuery.asStateFlow()
 
+    private val _searchScope = MutableStateFlow("all") // "all", "name", "rules", "tags"
+    val searchScope: StateFlow<String> = _searchScope.asStateFlow()
+
     private val _selectedCardType = MutableStateFlow<String?>(null)
     val selectedCardType: StateFlow<String?> = _selectedCardType.asStateFlow()
 
@@ -118,29 +121,36 @@ class CollectionViewModel(application: Application) : AndroidViewModel(applicati
     private val _selectedDivision = MutableStateFlow<String?>(null)
     val selectedDivision: StateFlow<String?> = _selectedDivision.asStateFlow()
 
+    private val _inCollectionFolderId = MutableStateFlow<String?>(null)
+    val inCollectionFolderId: StateFlow<String?> = _inCollectionFolderId.asStateFlow()
+
     // Filtered card search results (for adding cards to folder)
     val searchResults: StateFlow<List<Card>> = combine(
         _searchQuery,
+        _searchScope,
         _selectedCardType,
         _selectedAtkType,
         _selectedPlayOrder,
-        _selectedDivision
-    ) { query, cardType, atkType, playOrder, division ->
-        SearchFilters(query, cardType, atkType, playOrder, division)
+        _selectedDivision,
+        _inCollectionFolderId
+    ) { query, scope, cardType, atkType, playOrder, division, collectionFolderId ->
+        SearchFilters(query, scope, cardType, atkType, playOrder, division, collectionFolderId)
     }.flatMapLatest { filters ->
         // Return empty list if no search query and no filters
         if (filters.query.isBlank() && filters.cardType == null && filters.atkType == null &&
-            filters.playOrder == null && filters.division == null) {
+            filters.playOrder == null && filters.division == null && filters.inCollectionFolderId == null) {
             flowOf(emptyList())
         } else {
             repository.searchCardsWithFilters(
                 searchQuery = filters.query.ifBlank { null },
+                searchScope = filters.searchScope,
                 cardType = filters.cardType,
                 atkType = filters.atkType,
                 playOrder = filters.playOrder,
                 division = filters.division,
                 releaseSet = null,
                 isBanned = null,
+                inCollectionFolderId = filters.inCollectionFolderId,
                 limit = 50
             )
         }
@@ -195,10 +205,12 @@ class CollectionViewModel(application: Application) : AndroidViewModel(applicati
 
     data class SearchFilters(
         val query: String,
+        val searchScope: String,
         val cardType: String?,
         val atkType: String?,
         val playOrder: String?,
-        val division: String?
+        val division: String?,
+        val inCollectionFolderId: String?
     )
 
     init {
@@ -236,6 +248,20 @@ class CollectionViewModel(application: Application) : AndroidViewModel(applicati
                 repository.deleteFolder(folder)
             } catch (e: Exception) {
                 _errorMessage.value = "Failed to delete folder: ${e.message}"
+            }
+        }
+    }
+
+    fun renameFolder(folderId: String, newName: String) {
+        viewModelScope.launch {
+            try {
+                val folders = repository.getAllFolders().first()
+                val folder = folders.find { it.id == folderId }
+                folder?.let {
+                    repository.updateFolder(it.copy(name = newName))
+                }
+            } catch (e: Exception) {
+                _errorMessage.value = "Failed to rename folder: ${e.message}"
             }
         }
     }
@@ -294,6 +320,10 @@ class CollectionViewModel(application: Application) : AndroidViewModel(applicati
         _searchQuery.value = query
     }
 
+    fun setSearchScope(scope: String) {
+        _searchScope.value = scope
+    }
+
     fun setCardTypeFilter(cardType: String?) {
         _selectedCardType.value = cardType
         // Clear type-specific filters when changing card type
@@ -318,11 +348,17 @@ class CollectionViewModel(application: Application) : AndroidViewModel(applicati
         _selectedDivision.value = division
     }
 
+    fun setInCollectionFolderFilter(folderId: String?) {
+        _inCollectionFolderId.value = folderId
+    }
+
     fun clearFilters() {
         _selectedCardType.value = null
         _selectedAtkType.value = null
         _selectedPlayOrder.value = null
         _selectedDivision.value = null
+        _searchScope.value = "all"
+        _inCollectionFolderId.value = null
     }
 
     // ==================== Sync Operations ====================

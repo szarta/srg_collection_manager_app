@@ -204,6 +204,20 @@ class DeckViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
+    fun renameDeckFolder(folderId: String, newName: String) {
+        viewModelScope.launch {
+            try {
+                val folders = repository.getAllDeckFolders().first()
+                val folder = folders.find { it.id == folderId }
+                folder?.let {
+                    repository.updateDeckFolder(it.copy(name = newName))
+                }
+            } catch (e: Exception) {
+                _errorMessage.value = "Failed to rename folder: ${e.message}"
+            }
+        }
+    }
+
     fun removeCardFromDeck(deckId: String, slotType: DeckSlotType, slotNumber: Int) {
         viewModelScope.launch {
             try {
@@ -542,6 +556,7 @@ fun DecksScreen(
 ) {
     val foldersWithCounts by viewModel.deckFoldersWithCounts.collectAsState()
     var showCreateDialog by remember { mutableStateOf(false) }
+    var folderToRename by remember { mutableStateOf<DeckViewModel.DeckFolderWithCount?>(null) }
 
     Scaffold(
         topBar = {
@@ -578,6 +593,9 @@ fun DecksScreen(
                         folder = folderWithCount.folder,
                         deckCount = folderWithCount.deckCount,
                         onClick = { onFolderClick(folderWithCount.folder.id) },
+                        onRename = if (!folderWithCount.folder.isDefault) {
+                            { folderToRename = folderWithCount }
+                        } else null,
                         onDelete = if (!folderWithCount.folder.isDefault) {
                             { viewModel.deleteDeckFolder(folderWithCount.folder) }
                         } else null
@@ -597,6 +615,18 @@ fun DecksScreen(
             }
         )
     }
+
+    // Rename folder dialog
+    folderToRename?.let { folderWithCount ->
+        RenameDeckFolderDialog(
+            currentName = folderWithCount.folder.name,
+            onDismiss = { folderToRename = null },
+            onRename = { newName ->
+                viewModel.renameDeckFolder(folderWithCount.folder.id, newName)
+                folderToRename = null
+            }
+        )
+    }
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -605,6 +635,7 @@ fun DeckFolderItem(
     folder: DeckFolder,
     deckCount: Int,
     onClick: () -> Unit,
+    onRename: (() -> Unit)? = null,
     onDelete: (() -> Unit)?,
     modifier: Modifier = Modifier
 ) {
@@ -656,6 +687,17 @@ fun DeckFolderItem(
                 )
             }
 
+            // Rename button for custom folders
+            if (onRename != null) {
+                IconButton(onClick = onRename) {
+                    Icon(
+                        Icons.Default.Edit,
+                        contentDescription = "Rename folder",
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+            }
+
             // Delete button for custom folders
             if (onDelete != null) {
                 IconButton(onClick = onDelete) {
@@ -701,6 +743,42 @@ fun CreateDeckFolderDialog(
                 enabled = name.isNotBlank()
             ) {
                 Text("Create")
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) {
+                Text("Cancel")
+            }
+        }
+    )
+}
+
+@Composable
+fun RenameDeckFolderDialog(
+    currentName: String,
+    onDismiss: () -> Unit,
+    onRename: (String) -> Unit
+) {
+    var name by remember { mutableStateOf(currentName) }
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("Rename Deck Folder") },
+        text = {
+            OutlinedTextField(
+                value = name,
+                onValueChange = { name = it },
+                label = { Text("Folder Name") },
+                singleLine = true,
+                modifier = Modifier.fillMaxWidth()
+            )
+        },
+        confirmButton = {
+            TextButton(
+                onClick = { onRename(name) },
+                enabled = name.isNotBlank() && name != currentName
+            ) {
+                Text("Rename")
             }
         },
         dismissButton = {

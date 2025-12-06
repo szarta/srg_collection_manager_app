@@ -36,6 +36,9 @@ fun CardSearchScreen(
     val cardTypes by viewModel.cardTypes.collectAsState()
     val divisions by viewModel.divisions.collectAsState()
     val cardCount by viewModel.cardCount.collectAsState()
+    val searchScope by viewModel.searchScope.collectAsState()
+    val inCollectionFolderId by viewModel.inCollectionFolderId.collectAsState()
+    val foldersWithCounts by viewModel.foldersWithCounts.collectAsState()
 
     var selectedCard by remember { mutableStateOf<Card?>(null) }
 
@@ -71,7 +74,23 @@ fun CardSearchScreen(
             SearchBar(
                 searchQuery = searchQuery,
                 onSearchQueryChange = { viewModel.updateSearchQuery(it) },
+                searchScope = searchScope,
                 modifier = Modifier.padding(16.dp)
+            )
+
+            // Search scope selector
+            SearchScopeSelector(
+                selectedScope = searchScope,
+                onScopeSelected = { viewModel.setSearchScope(it) },
+                modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)
+            )
+
+            // Collection folder filter
+            CollectionFolderFilter(
+                folders = foldersWithCounts.map { it.folder },
+                selectedFolderId = inCollectionFolderId,
+                onFolderSelected = { viewModel.setInCollectionFolderFilter(it) },
+                modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)
             )
 
             // Filters

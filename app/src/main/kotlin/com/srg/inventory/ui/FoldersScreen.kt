@@ -28,6 +28,7 @@ fun FoldersScreen(
     val cardCount by viewModel.cardCount.collectAsState()
 
     var showCreateFolderDialog by remember { mutableStateOf(false) }
+    var folderToRename by remember { mutableStateOf<CollectionViewModel.FolderWithCount?>(null) }
 
     Scaffold(
         topBar = {
@@ -96,6 +97,9 @@ fun FoldersScreen(
                             folder = folderWithCount.folder,
                             cardCount = folderWithCount.cardCount,
                             onClick = { onFolderClick(folderWithCount.folder.id) },
+                            onRename = if (!folderWithCount.folder.isDefault) {
+                                { folderToRename = folderWithCount }
+                            } else null,
                             onDelete = if (!folderWithCount.folder.isDefault) {
                                 { viewModel.deleteFolder(folderWithCount.folder) }
                             } else null
@@ -116,6 +120,18 @@ fun FoldersScreen(
             }
         )
     }
+
+    // Rename folder dialog
+    folderToRename?.let { folderWithCount ->
+        RenameFolderDialog(
+            currentName = folderWithCount.folder.name,
+            onDismiss = { folderToRename = null },
+            onRename = { newName ->
+                viewModel.renameFolder(folderWithCount.folder.id, newName)
+                folderToRename = null
+            }
+        )
+    }
 }
 
 @Composable
@@ -123,6 +139,7 @@ fun FolderCard(
     folder: Folder,
     cardCount: Int,
     onClick: () -> Unit,
+    onRename: (() -> Unit)? = null,
     onDelete: (() -> Unit)?,
     modifier: Modifier = Modifier
 ) {
@@ -175,6 +192,15 @@ fun FolderCard(
                     contentDescription = "View folder",
                     tint = MaterialTheme.colorScheme.onSurfaceVariant
                 )
+                if (onRename != null) {
+                    IconButton(onClick = onRename) {
+                        Icon(
+                            Icons.Default.Edit,
+                            contentDescription = "Rename folder",
+                            tint = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                }
                 if (onDelete != null) {
                     IconButton(onClick = onDelete) {
                         Icon(
@@ -250,6 +276,42 @@ fun CreateFolderDialog(
                 enabled = folderName.isNotBlank()
             ) {
                 Text("Create")
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) {
+                Text("Cancel")
+            }
+        }
+    )
+}
+
+@Composable
+fun RenameFolderDialog(
+    currentName: String,
+    onDismiss: () -> Unit,
+    onRename: (String) -> Unit
+) {
+    var folderName by remember { mutableStateOf(currentName) }
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("Rename Folder") },
+        text = {
+            OutlinedTextField(
+                value = folderName,
+                onValueChange = { folderName = it },
+                label = { Text("Folder Name") },
+                singleLine = true,
+                modifier = Modifier.fillMaxWidth()
+            )
+        },
+        confirmButton = {
+            TextButton(
+                onClick = { onRename(folderName) },
+                enabled = folderName.isNotBlank() && folderName != currentName
+            ) {
+                Text("Rename")
             }
         },
         dismissButton = {

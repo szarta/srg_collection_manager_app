@@ -42,29 +42,39 @@ interface CardDao {
     @Query("SELECT DISTINCT division FROM cards WHERE division IS NOT NULL ORDER BY division ASC")
     suspend fun getAllDivisions(): List<String>
 
-    // Search with filters
+    // Search with filters and field scope
     @Query("""
-        SELECT * FROM cards
-        WHERE (:searchQuery IS NULL OR name LIKE '%' || :searchQuery || '%' COLLATE NOCASE
-               OR rules_text LIKE '%' || :searchQuery || '%' COLLATE NOCASE
-               OR tags LIKE '%' || :searchQuery || '%' COLLATE NOCASE)
+        SELECT DISTINCT cards.* FROM cards
+        LEFT JOIN folder_cards ON cards.db_uuid = folder_cards.card_uuid
+        WHERE (:searchQuery IS NULL OR
+               CASE :searchScope
+                   WHEN 'name' THEN name LIKE '%' || :searchQuery || '%' COLLATE NOCASE
+                   WHEN 'rules' THEN rules_text LIKE '%' || :searchQuery || '%' COLLATE NOCASE
+                   WHEN 'tags' THEN tags LIKE '%' || :searchQuery || '%' COLLATE NOCASE
+                   ELSE (name LIKE '%' || :searchQuery || '%' COLLATE NOCASE
+                         OR rules_text LIKE '%' || :searchQuery || '%' COLLATE NOCASE
+                         OR tags LIKE '%' || :searchQuery || '%' COLLATE NOCASE)
+               END)
         AND (:cardType IS NULL OR card_type = :cardType)
         AND (:atkType IS NULL OR atk_type = :atkType)
         AND (:playOrder IS NULL OR play_order = :playOrder)
         AND (:division IS NULL OR division = :division)
         AND (:releaseSet IS NULL OR release_set = :releaseSet)
         AND (:isBanned IS NULL OR is_banned = :isBanned)
+        AND (:inCollectionFolderId IS NULL OR folder_cards.folder_id = :inCollectionFolderId)
         ORDER BY name ASC
         LIMIT :limit
     """)
     fun searchCardsWithFilters(
         searchQuery: String?,
+        searchScope: String = "all",
         cardType: String?,
         atkType: String?,
         playOrder: String?,
         division: String?,
         releaseSet: String?,
         isBanned: Boolean?,
+        inCollectionFolderId: String? = null,
         limit: Int = 100
     ): Flow<List<Card>>
 

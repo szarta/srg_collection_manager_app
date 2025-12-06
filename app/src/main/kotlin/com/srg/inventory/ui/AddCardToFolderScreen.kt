@@ -14,10 +14,12 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import coil.compose.AsyncImage
 import com.srg.inventory.data.Card
+import com.srg.inventory.data.Folder
 import com.srg.inventory.utils.ImageUtils
 
 /**
@@ -39,6 +41,9 @@ fun AddCardToFolderScreen(
     val selectedDivision by viewModel.selectedDivision.collectAsState()
     val cardTypes by viewModel.cardTypes.collectAsState()
     val divisions by viewModel.divisions.collectAsState()
+    val searchScope by viewModel.searchScope.collectAsState()
+    val inCollectionFolderId by viewModel.inCollectionFolderId.collectAsState()
+    val foldersWithCounts by viewModel.foldersWithCounts.collectAsState()
 
     var cardToAdd by remember { mutableStateOf<Card?>(null) }
 
@@ -78,7 +83,23 @@ fun AddCardToFolderScreen(
             SearchBar(
                 searchQuery = searchQuery,
                 onSearchQueryChange = { viewModel.updateSearchQuery(it) },
+                searchScope = searchScope,
                 modifier = Modifier.padding(16.dp)
+            )
+
+            // Search scope selector
+            SearchScopeSelector(
+                selectedScope = searchScope,
+                onScopeSelected = { viewModel.setSearchScope(it) },
+                modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)
+            )
+
+            // Collection folder filter
+            CollectionFolderFilter(
+                folders = foldersWithCounts.map { it.folder },
+                selectedFolderId = inCollectionFolderId,
+                onFolderSelected = { viewModel.setInCollectionFolderFilter(it) },
+                modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)
             )
 
             // Filters
@@ -139,13 +160,21 @@ fun AddCardToFolderScreen(
 fun SearchBar(
     searchQuery: String,
     onSearchQueryChange: (String) -> Unit,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    searchScope: String = "all"
 ) {
+    val placeholderText = when (searchScope) {
+        "name" -> "Search by card name..."
+        "rules" -> "Search by rules text..."
+        "tags" -> "Search by tags..."
+        else -> "Card name, rules text, or tags..."
+    }
+
     OutlinedTextField(
         value = searchQuery,
         onValueChange = onSearchQueryChange,
         label = { Text("Search cards") },
-        placeholder = { Text("Card name or text...") },
+        placeholder = { Text(placeholderText) },
         leadingIcon = {
             Icon(Icons.Default.Search, contentDescription = null)
         },
@@ -159,6 +188,97 @@ fun SearchBar(
         singleLine = true,
         modifier = modifier.fillMaxWidth()
     )
+}
+
+@Composable
+fun SearchScopeSelector(
+    selectedScope: String,
+    onScopeSelected: (String) -> Unit,
+    modifier: Modifier = Modifier
+) {
+    Column(modifier = modifier.fillMaxWidth()) {
+        Text(
+            text = "Search in:",
+            style = MaterialTheme.typography.labelMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            modifier = Modifier.padding(bottom = 8.dp)
+        )
+        Row(
+            horizontalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            FilterChip(
+                selected = selectedScope == "all",
+                onClick = { onScopeSelected("all") },
+                label = { Text("All Fields") }
+            )
+            FilterChip(
+                selected = selectedScope == "name",
+                onClick = { onScopeSelected("name") },
+                label = { Text("Name") }
+            )
+            FilterChip(
+                selected = selectedScope == "rules",
+                onClick = { onScopeSelected("rules") },
+                label = { Text("Rules") }
+            )
+            FilterChip(
+                selected = selectedScope == "tags",
+                onClick = { onScopeSelected("tags") },
+                label = { Text("Tags") }
+            )
+        }
+    }
+}
+
+@Composable
+fun CollectionFolderFilter(
+    folders: List<Folder>,
+    selectedFolderId: String?,
+    onFolderSelected: (String?) -> Unit,
+    modifier: Modifier = Modifier
+) {
+    Column(modifier = modifier.fillMaxWidth()) {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Text(
+                text = "In collection:",
+                style = MaterialTheme.typography.labelMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.padding(bottom = 8.dp)
+            )
+            if (selectedFolderId != null) {
+                TextButton(
+                    onClick = { onFolderSelected(null) },
+                    contentPadding = PaddingValues(horizontal = 8.dp, vertical = 0.dp)
+                ) {
+                    Icon(
+                        Icons.Default.Clear,
+                        contentDescription = "Clear filter",
+                        modifier = Modifier.size(16.dp)
+                    )
+                    Spacer(modifier = Modifier.width(4.dp))
+                    Text("Clear", style = MaterialTheme.typography.labelSmall)
+                }
+            }
+        }
+        LazyRow(
+            horizontalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            items(folders.size) { index ->
+                val folder = folders[index]
+                FilterChip(
+                    selected = folder.id == selectedFolderId,
+                    onClick = {
+                        onFolderSelected(if (folder.id == selectedFolderId) null else folder.id)
+                    },
+                    label = { Text(folder.name) }
+                )
+            }
+        }
+    }
 }
 
 @Composable
@@ -412,7 +532,7 @@ fun AddCardDialog(
     onConfirm: (Int) -> Unit
 ) {
     val context = LocalContext.current
-    var quantity by remember { mutableStateOf("1") }
+    var quantity by remember { mutableStateOf(1) }
 
     AlertDialog(
         onDismissRequest = onDismiss,
@@ -434,22 +554,52 @@ fun AddCardDialog(
                     fontWeight = FontWeight.Medium
                 )
                 Spacer(modifier = Modifier.height(16.dp))
-                OutlinedTextField(
-                    value = quantity,
-                    onValueChange = { quantity = it.filter { char -> char.isDigit() } },
-                    label = { Text("Quantity") },
-                    singleLine = true,
-                    modifier = Modifier.fillMaxWidth()
-                )
+                // Quantity selector with +/- buttons
+                Column(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalAlignment = Alignment.CenterHorizontally
+                ) {
+                    Text(
+                        text = "Quantity",
+                        style = MaterialTheme.typography.labelMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(16.dp)
+                    ) {
+                        // Decrement button
+                        FilledIconButton(
+                            onClick = { if (quantity > 1) quantity-- },
+                            enabled = quantity > 1,
+                            modifier = Modifier.size(48.dp)
+                        ) {
+                            Icon(Icons.Default.Remove, contentDescription = "Decrease")
+                        }
+                        // Quantity display
+                        Text(
+                            text = "$quantity",
+                            style = MaterialTheme.typography.headlineMedium,
+                            fontWeight = FontWeight.Bold,
+                            modifier = Modifier.widthIn(min = 64.dp),
+                            textAlign = TextAlign.Center
+                        )
+                        // Increment button
+                        FilledIconButton(
+                            onClick = { if (quantity < 999) quantity++ },
+                            enabled = quantity < 999,
+                            modifier = Modifier.size(48.dp)
+                        ) {
+                            Icon(Icons.Default.Add, contentDescription = "Increase")
+                        }
+                    }
+                }
             }
         },
         confirmButton = {
             TextButton(
-                onClick = {
-                    val qty = quantity.toIntOrNull() ?: 1
-                    onConfirm(qty)
-                },
-                enabled = quantity.isNotBlank() && quantity.toIntOrNull() != null && quantity.toInt() > 0
+                onClick = { onConfirm(quantity) }
             ) {
                 Text("Add")
             }
