@@ -15,7 +15,10 @@ Android app for managing your SRG Supershow wrestling card collection and buildi
 - **Advanced Card Search** - Search with type-specific filters (attack type, play order, division, etc.)
   - ✨ **Search Scope Selector** - Filter by All Fields, Name Only, Rules Only, or Tags Only
   - Dynamic search placeholder updates based on selected scope
-- **Card Viewer** - Browse and view any card with full details (image, stats, rules)
+- **Card Viewer** - ✨ **Two-Page Flow** - Dedicated search page with all filters, then results page
+  - Search page with all filters including deck card number (1-30) for MainDeckCards
+  - Search button navigates to clean results page
+  - Quick back navigation to refine search
 - **Folder Search** - ✨ Search within specific collection folders by name, rules, or tags (magnifying glass icon)
 - **Smart Quantity Entry** - ✨ +/- buttons (max 999) instead of keyboard for card quantities
 - **Edit Quantity Dialog** - +/- buttons to adjust quantity, delete option to remove cards
@@ -217,9 +220,10 @@ CREATE TABLE folder_cards (
 
 ### 3. Add Cards to Folders
    - Open a folder → Tap **+** button
-   - Search by card name or rules text
-   - Use filters: Card Type, Attack Type, Play Order, Division
-   - Select a card and enter quantity
+   - **Search Page**: Enter search terms and select filters (Card Type, Attack Type, Play Order, Division, Deck Card Number)
+   - Tap **Search** button to see results
+   - **Results Page**: Browse matching cards, tap to add with quantity
+   - Back button returns to search to refine filters
    - Same card can be in multiple folders with different quantities
 
 ### 4. Manage Cards in Folders

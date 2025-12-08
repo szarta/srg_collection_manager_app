@@ -121,6 +121,9 @@ class CollectionViewModel(application: Application) : AndroidViewModel(applicati
     private val _selectedDivision = MutableStateFlow<String?>(null)
     val selectedDivision: StateFlow<String?> = _selectedDivision.asStateFlow()
 
+    private val _selectedDeckCardNumber = MutableStateFlow<Int?>(null)
+    val selectedDeckCardNumber: StateFlow<Int?> = _selectedDeckCardNumber.asStateFlow()
+
     private val _inCollectionFolderId = MutableStateFlow<String?>(null)
     val inCollectionFolderId: StateFlow<String?> = _inCollectionFolderId.asStateFlow()
 
@@ -136,18 +139,20 @@ class CollectionViewModel(application: Application) : AndroidViewModel(applicati
             arrayOfValues
         },
         _selectedDivision,
+        _selectedDeckCardNumber,
         _inCollectionFolderId
-    ) { arrayOfValues, division, collectionFolderId ->
+    ) { arrayOfValues, division, deckCardNumber, collectionFolderId ->
         val query = arrayOfValues[0] as String
         val scope = arrayOfValues[1] as String
         val cardType = arrayOfValues[2] as String?
         val atkType = arrayOfValues[3] as String?
         val playOrder = arrayOfValues[4] as String?
-        SearchFilters(query, scope, cardType, atkType, playOrder, division, collectionFolderId)
+        SearchFilters(query, scope, cardType, atkType, playOrder, division, deckCardNumber, collectionFolderId)
     }.flatMapLatest { filters ->
         // Return empty list if no search query and no filters
         if (filters.query.isBlank() && filters.cardType == null && filters.atkType == null &&
-            filters.playOrder == null && filters.division == null && filters.inCollectionFolderId == null) {
+            filters.playOrder == null && filters.division == null && filters.deckCardNumber == null &&
+            filters.inCollectionFolderId == null) {
             flowOf(emptyList())
         } else {
             repository.searchCardsWithFilters(
@@ -157,6 +162,7 @@ class CollectionViewModel(application: Application) : AndroidViewModel(applicati
                 atkType = filters.atkType,
                 playOrder = filters.playOrder,
                 division = filters.division,
+                deckCardNumber = filters.deckCardNumber,
                 releaseSet = null,
                 isBanned = null,
                 inCollectionFolderId = filters.inCollectionFolderId,
@@ -219,6 +225,7 @@ class CollectionViewModel(application: Application) : AndroidViewModel(applicati
         val atkType: String?,
         val playOrder: String?,
         val division: String?,
+        val deckCardNumber: Int?,
         val inCollectionFolderId: String?
     )
 
@@ -357,6 +364,10 @@ class CollectionViewModel(application: Application) : AndroidViewModel(applicati
         _selectedDivision.value = division
     }
 
+    fun setDeckCardNumberFilter(deckCardNumber: Int?) {
+        _selectedDeckCardNumber.value = deckCardNumber
+    }
+
     fun setInCollectionFolderFilter(folderId: String?) {
         _inCollectionFolderId.value = folderId
     }
@@ -366,6 +377,7 @@ class CollectionViewModel(application: Application) : AndroidViewModel(applicati
         _selectedAtkType.value = null
         _selectedPlayOrder.value = null
         _selectedDivision.value = null
+        _selectedDeckCardNumber.value = null
         _searchScope.value = "all"
         _inCollectionFolderId.value = null
     }

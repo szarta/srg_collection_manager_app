@@ -5,6 +5,8 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
@@ -23,7 +25,7 @@ import com.srg.inventory.data.Folder
 import com.srg.inventory.utils.ImageUtils
 
 /**
- * Screen for searching and adding cards to a folder
+ * Screen for searching and adding cards to a folder - Search Page
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -31,28 +33,18 @@ fun AddCardToFolderScreen(
     folderId: String,
     viewModel: CollectionViewModel,
     onBackClick: () -> Unit,
+    onSearchClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
     val searchQuery by viewModel.searchQuery.collectAsState()
-    val searchResults by viewModel.searchResults.collectAsState()
     val selectedCardType by viewModel.selectedCardType.collectAsState()
     val selectedAtkType by viewModel.selectedAtkType.collectAsState()
     val selectedPlayOrder by viewModel.selectedPlayOrder.collectAsState()
     val selectedDivision by viewModel.selectedDivision.collectAsState()
+    val selectedDeckCardNumber by viewModel.selectedDeckCardNumber.collectAsState()
     val cardTypes by viewModel.cardTypes.collectAsState()
     val divisions by viewModel.divisions.collectAsState()
     val searchScope by viewModel.searchScope.collectAsState()
-    val inCollectionFolderId by viewModel.inCollectionFolderId.collectAsState()
-    val foldersWithCounts by viewModel.foldersWithCounts.collectAsState()
-
-    var cardToAdd by remember { mutableStateOf<Card?>(null) }
-
-    DisposableEffect(Unit) {
-        onDispose {
-            viewModel.clearFilters()
-            viewModel.updateSearchQuery("")
-        }
-    }
 
     Scaffold(
         topBar = {
@@ -62,14 +54,6 @@ fun AddCardToFolderScreen(
                     IconButton(onClick = onBackClick) {
                         Icon(Icons.Default.ArrowBack, contentDescription = "Back")
                     }
-                },
-                actions = {
-                    if (selectedCardType != null || selectedAtkType != null ||
-                        selectedPlayOrder != null || selectedDivision != null) {
-                        IconButton(onClick = { viewModel.clearFilters() }) {
-                            Icon(Icons.Default.FilterAltOff, contentDescription = "Clear filters")
-                        }
-                    }
                 }
             )
         }
@@ -78,6 +62,7 @@ fun AddCardToFolderScreen(
             modifier = modifier
                 .fillMaxSize()
                 .padding(paddingValues)
+                .verticalScroll(rememberScrollState())
         ) {
             // Search bar
             SearchBar(
@@ -107,29 +92,108 @@ fun AddCardToFolderScreen(
                 selectedDivision = selectedDivision,
                 onDivisionSelected = { viewModel.setDivisionFilter(it) },
                 showMainDeckFilters = selectedCardType == "MainDeckCard",
-                showCompetitorFilters = selectedCardType?.contains("Competitor") == true
+                showCompetitorFilters = selectedCardType?.contains("Competitor") == true,
+                selectedDeckCardNumber = selectedDeckCardNumber,
+                onDeckCardNumberSelected = { viewModel.setDeckCardNumberFilter(it) }
             )
 
-            Divider()
+            Spacer(modifier = Modifier.height(16.dp))
 
-            // Results
-            if (searchResults.isEmpty()) {
-                EmptySearchResults(
-                    hasQuery = searchQuery.isNotBlank(),
-                    modifier = Modifier.fillMaxSize()
-                )
-            } else {
-                LazyColumn(
-                    modifier = Modifier.fillMaxSize(),
-                    contentPadding = PaddingValues(16.dp),
-                    verticalArrangement = Arrangement.spacedBy(8.dp)
-                ) {
-                    items(searchResults, key = { it.dbUuid }) { card ->
-                        SearchResultCard(
-                            card = card,
-                            onClick = { cardToAdd = card }
-                        )
+            // Search button
+            Button(
+                onClick = onSearchClick,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 16.dp),
+                enabled = searchQuery.isNotBlank() || selectedCardType != null ||
+                         selectedAtkType != null || selectedPlayOrder != null ||
+                         selectedDivision != null || selectedDeckCardNumber != null
+            ) {
+                Icon(Icons.Default.Search, contentDescription = null)
+                Spacer(modifier = Modifier.width(8.dp))
+                Text("Search")
+            }
+
+            Spacer(modifier = Modifier.height(16.dp))
+        }
+    }
+}
+
+/**
+ * Results page for adding cards to a folder
+ */
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun AddCardToFolderResultsScreen(
+    folderId: String,
+    viewModel: CollectionViewModel,
+    onBackClick: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    val searchResults by viewModel.searchResults.collectAsState()
+    val searchQuery by viewModel.searchQuery.collectAsState()
+
+    var cardToAdd by remember { mutableStateOf<Card?>(null) }
+
+    Scaffold(
+        topBar = {
+            TopAppBar(
+                title = {
+                    Text(
+                        text = "${searchResults.size} results",
+                        style = MaterialTheme.typography.titleLarge
+                    )
+                },
+                navigationIcon = {
+                    IconButton(onClick = onBackClick) {
+                        Icon(Icons.Default.ArrowBack, contentDescription = "Back to search")
                     }
+                }
+            )
+        }
+    ) { paddingValues ->
+        if (searchResults.isEmpty()) {
+            // Empty state
+            Column(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(paddingValues)
+                    .padding(32.dp),
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.Center
+            ) {
+                Icon(
+                    Icons.Default.SearchOff,
+                    contentDescription = null,
+                    modifier = Modifier.size(64.dp),
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+                Spacer(modifier = Modifier.height(16.dp))
+                Text(
+                    text = "No cards found",
+                    style = MaterialTheme.typography.titleLarge
+                )
+                Spacer(modifier = Modifier.height(8.dp))
+                Text(
+                    text = "Try adjusting your search filters",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+        } else {
+            // Results list
+            LazyColumn(
+                modifier = modifier
+                    .fillMaxSize()
+                    .padding(paddingValues),
+                contentPadding = PaddingValues(16.dp),
+                verticalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                items(searchResults, key = { it.dbUuid }) { card ->
+                    SearchResultCard(
+                        card = card,
+                        onClick = { cardToAdd = card }
+                    )
                 }
             }
         }
@@ -289,6 +353,8 @@ fun FiltersSection(
     onDivisionSelected: (String?) -> Unit,
     showMainDeckFilters: Boolean,
     showCompetitorFilters: Boolean,
+    selectedDeckCardNumber: Int? = null,
+    onDeckCardNumberSelected: ((Int?) -> Unit)? = null,
     modifier: Modifier = Modifier
 ) {
     Column(modifier = modifier) {
@@ -304,6 +370,17 @@ fun FiltersSection(
 
         // Main Deck Filters (shown only when MainDeckCard is selected)
         if (showMainDeckFilters) {
+            // Deck Card Number filter
+            if (onDeckCardNumberSelected != null) {
+                FilterChipsRow(
+                    title = "Deck Card Number",
+                    options = (1..30).map { it.toString() },
+                    selectedOption = selectedDeckCardNumber?.toString(),
+                    onOptionSelected = { value ->
+                        onDeckCardNumberSelected(value?.toIntOrNull())
+                    }
+                )
+            }
             FilterChipsRow(
                 title = "Attack Type",
                 options = listOf("Strike", "Grapple", "Submission"),

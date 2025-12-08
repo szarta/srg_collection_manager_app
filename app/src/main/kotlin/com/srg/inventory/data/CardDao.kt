@@ -59,6 +59,7 @@ interface CardDao {
         AND (:atkType IS NULL OR atk_type = :atkType)
         AND (:playOrder IS NULL OR play_order = :playOrder)
         AND (:division IS NULL OR division = :division)
+        AND (:deckCardNumber IS NULL OR deck_card_number = :deckCardNumber)
         AND (:releaseSet IS NULL OR release_set = :releaseSet)
         AND (:isBanned IS NULL OR is_banned = :isBanned)
         AND (:inCollectionFolderId IS NULL OR folder_cards.folder_id = :inCollectionFolderId)
@@ -72,6 +73,7 @@ interface CardDao {
         atkType: String?,
         playOrder: String?,
         division: String?,
+        deckCardNumber: Int? = null,
         releaseSet: String?,
         isBanned: Boolean?,
         inCollectionFolderId: String? = null,

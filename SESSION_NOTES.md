@@ -2,6 +2,143 @@
 
 ## What Was Completed This Session ✅
 
+### Add Cards to Folder Two-Page Flow (COMPLETED)
+
+**Goal:** Apply the same two-page search flow to adding cards to folders for consistency
+
+**Features Implemented:**
+
+1. **Search-Only Page** (`AddCardToFolderScreen.kt:32-120`)
+   - **Layout**: Clean search page with all filters, no results clutter
+   - **All Filters**: Search query, scope selector, card type, attack type, play order, division, deck card number
+   - **Search Button**: Navigates to results page when filters/query are set
+   - **Scrollable**: Fully scrollable content for long filter lists
+
+2. **Results Page** (`AddCardToFolderScreen.kt:127-213`)
+   - **New Screen**: AddCardToFolderResultsScreen for displaying matches
+   - **Header**: Shows result count with back button
+   - **Card List**: Click card to open add quantity dialog
+   - **Empty State**: Helpful message when no results found
+   - **Back Navigation**: Returns to search page to refine filters
+
+3. **Navigation Updates** (`Navigation.kt:31-33, 101-112`)
+   - **New Route**: AddCardToFolderResults route added
+   - **Folder ID**: Passed through navigation parameters
+   - **Flow**: AddCardToFolder → [Search Button] → AddCardToFolderResults → [Back] → AddCardToFolder
+
+**User Flow:**
+```
+Folder Detail → [+ Button]
+  ↓
+AddCardToFolderScreen (Search Page)
+  ├─ All filters + search query
+  └─ [Search Button] ─────→ AddCardToFolderResultsScreen (Results)
+                                ├─ [← Back] returns to search
+                                ├─ Click card → Add quantity dialog
+                                └─ Confirm → Card added to folder
+```
+
+**Consistency Benefits:**
+- ✅ Same UX as viewer search (familiar pattern)
+- ✅ Cleaner search setup without results clutter
+- ✅ Deck card number filter available for MainDeckCards
+- ✅ Quick back navigation to refine search
+- ✅ Clear separation of search vs results
+
+**Files Modified:**
+- `app/src/main/kotlin/com/srg/inventory/ui/AddCardToFolderScreen.kt` - Two-page split
+- `app/src/main/kotlin/com/srg/inventory/ui/Navigation.kt` - New route
+
+**Version Update:**
+- **Version**: 1.0.11 (versionCode 14)
+- **Previous**: 1.0.10 (versionCode 13)
+
+**Release Build:**
+- **AAB Created**: `app/build/outputs/bundle/release/app-release.aab` (181MB)
+- **Ready For**: Google Play internal testing track
+
+---
+
+### Card Viewer Two-Page Rework (COMPLETED)
+
+**Goal:** Transform viewer into a cleaner two-page flow: search page → results page
+
+**Features Implemented:**
+
+1. **Search-Only Page** (`CardSearchScreen.kt:28-127`)
+   - **Layout**: Dedicated search page with all filters
+   - **Filters Include**:
+     - Search query with scope selector (All/Name/Rules/Tags)
+     - Card Type filter
+     - Attack Type filter (for MainDeckCards)
+     - Play Order filter (for MainDeckCards)
+     - Division filter (for Competitors)
+     - **NEW**: Deck Card Number (1-30) filter (for MainDeckCards)
+   - **Search Button**: Navigates to results, enabled when any filter/query is set
+   - **UX**: Clean, scrollable, focused on search setup
+
+2. **Results Page** (`CardSearchScreen.kt:132-215`)
+   - **Header**: Shows result count (e.g., "5 results") with back button
+   - **Back Navigation**: Quick return to search page to refine filters
+   - **Card List**: Displays all matching cards with details
+   - **Empty State**: "No cards found" with suggestion to adjust filters
+   - **Card Details**: Tap any card to view full details in dialog
+
+3. **Deck Card Number Filter** (Multiple Files)
+   - **ViewModel State**: Added `selectedDeckCardNumber` StateFlow (`CollectionViewModel.kt:124-125`)
+   - **Filter Function**: `setDeckCardNumberFilter(Int?)` (`CollectionViewModel.kt:367-369`)
+   - **Clear Support**: Reset in `clearFilters()` (`CollectionViewModel.kt:380`)
+   - **Database Query**: Added deckCardNumber parameter to `searchCardsWithFilters` (`CardDao.kt:62`)
+   - **Repository Layer**: Pass-through support (`CollectionRepository.kt:92`)
+   - **Search Flow**: Integrated into combine() flow with proper empty state check (`CollectionViewModel.kt:131-172`)
+   - **Filter UI**: 30 chips (1-30) in FiltersSection, visible only for MainDeckCards (`AddCardToFolderScreen.kt`)
+
+4. **State Management Fix**
+   - **Problem**: DisposableEffect was clearing filters when navigating to results page
+   - **Fix**: Removed DisposableEffect from CardSearchScreen
+   - **Result**: Search state persists when navigating between pages
+
+**Navigation Flow:**
+```
+Viewer Tab
+  ↓
+CardSearchScreen (Search Page)
+  ├─ Search Bar + Scope Selector
+  ├─ Card Type → triggers conditional filters
+  ├─ MainDeck filters (Atk Type, Play Order, Deck Card #)
+  ├─ Competitor filters (Division)
+  └─ [Search Button] ─────→ SearchResultsScreen (Results Page)
+                                ├─ [← Back] returns to search
+                                ├─ Result count in header
+                                ├─ Card list
+                                └─ Card details dialog
+```
+
+**Files Modified:**
+- `app/src/main/kotlin/com/srg/inventory/ui/CardSearchScreen.kt` - Two-page split, removed DisposableEffect
+- `app/src/main/kotlin/com/srg/inventory/ui/Navigation.kt` - Added SearchResults route
+- `app/src/main/kotlin/com/srg/inventory/ui/CollectionViewModel.kt` - Deck card number state, SearchFilters update
+- `app/src/main/kotlin/com/srg/inventory/data/CardDao.kt` - Deck card number query parameter
+- `app/src/main/kotlin/com/srg/inventory/data/CollectionRepository.kt` - Deck card number support
+- `app/src/main/kotlin/com/srg/inventory/ui/AddCardToFolderScreen.kt` - Deck card number filter UI
+
+**User Experience:**
+- ✅ Cleaner search setup without results clutter
+- ✅ All filters in one place before searching
+- ✅ Deck card number filter for precise MainDeck searches
+- ✅ Quick back navigation to refine search
+- ✅ Clear result count and empty state messaging
+
+**Version Update:**
+- **Version**: 1.0.10 (versionCode 13)
+- **Previous**: 1.0.9 (versionCode 12)
+
+**Release Build:**
+- **AAB Created**: `app/build/outputs/bundle/release/app-release.aab` (181MB)
+- **Ready For**: Google Play internal testing track
+
+---
+
 ### UI/UX Enhancements and Advanced Search (COMPLETED)
 
 **Goal:** Improve user experience with better search capabilities, cleaner UI, and intuitive controls

@@ -17,6 +17,7 @@ sealed class Screen(val route: String) {
     object Collection : Screen("collection")
     object Decks : Screen("decks")
     object CardSearch : Screen("card_search")
+    object SearchResults : Screen("search_results")
     object Scan : Screen("scan")
     object Settings : Screen("settings")
 
@@ -26,6 +27,9 @@ sealed class Screen(val route: String) {
     }
     object AddCardToFolder : Screen("folder/{folderId}/add") {
         fun createRoute(folderId: String) = "folder/$folderId/add"
+    }
+    object AddCardToFolderResults : Screen("folder/{folderId}/add/results") {
+        fun createRoute(folderId: String) = "folder/$folderId/add/results"
     }
 
     // Deck sub-screens
@@ -87,6 +91,22 @@ fun CollectionNavHost(
             AddCardToFolderScreen(
                 folderId = folderId,
                 viewModel = viewModel,
+                onBackClick = { navController.popBackStack() },
+                onSearchClick = {
+                    navController.navigate(Screen.AddCardToFolderResults.createRoute(folderId))
+                }
+            )
+        }
+
+        // Add card to folder - results
+        composable(
+            route = Screen.AddCardToFolderResults.route,
+            arguments = listOf(navArgument("folderId") { type = NavType.StringType })
+        ) { backStackEntry ->
+            val folderId = backStackEntry.arguments?.getString("folderId") ?: return@composable
+            AddCardToFolderResultsScreen(
+                folderId = folderId,
+                viewModel = viewModel,
                 onBackClick = { navController.popBackStack() }
             )
         }
@@ -127,10 +147,21 @@ fun CollectionNavHost(
             )
         }
 
-        // Card Viewer screen
+        // Card Viewer screen (search page)
         composable(Screen.CardSearch.route) {
             CardSearchScreen(
-                viewModel = viewModel
+                viewModel = viewModel,
+                onSearchClick = {
+                    navController.navigate(Screen.SearchResults.route)
+                }
+            )
+        }
+
+        // Search results screen
+        composable(Screen.SearchResults.route) {
+            SearchResultsScreen(
+                viewModel = viewModel,
+                onBackClick = { navController.popBackStack() }
             )
         }
 

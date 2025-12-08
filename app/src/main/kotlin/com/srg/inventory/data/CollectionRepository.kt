@@ -89,12 +89,13 @@ class CollectionRepository(
         atkType: String?,
         playOrder: String?,
         division: String?,
+        deckCardNumber: Int? = null,
         releaseSet: String?,
         isBanned: Boolean?,
         inCollectionFolderId: String? = null,
         limit: Int = 100
     ): Flow<List<Card>> = cardDao.searchCardsWithFilters(
-        searchQuery, searchScope, cardType, atkType, playOrder, division, releaseSet, isBanned, inCollectionFolderId, limit
+        searchQuery, searchScope, cardType, atkType, playOrder, division, deckCardNumber, releaseSet, isBanned, inCollectionFolderId, limit
     )
 
     suspend fun getAllCardTypes(): List<String> = cardDao.getAllCardTypes()
