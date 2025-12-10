@@ -213,6 +213,8 @@ fun BrowseCardItem(
     onClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
+    val context = LocalContext.current
+
     Card(
         modifier = modifier
             .fillMaxWidth()
@@ -225,29 +227,15 @@ fun BrowseCardItem(
                 .padding(12.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            // Card icon/placeholder
-            Surface(
-                modifier = Modifier.size(48.dp),
-                color = MaterialTheme.colorScheme.primaryContainer,
-                shape = MaterialTheme.shapes.small
-            ) {
-                Box(contentAlignment = Alignment.Center) {
-                    Icon(
-                        imageVector = when (card.cardType) {
-                            "MainDeckCard" -> Icons.Default.Style
-                            "SingleCompetitorCard" -> Icons.Default.Person
-                            "TornadoCompetitorCard" -> Icons.Default.Groups
-                            "TrioCompetitorCard" -> Icons.Default.Groups3
-                            "EntranceCard" -> Icons.Default.MeetingRoom
-                            "SpectacleCard" -> Icons.Default.AutoAwesome
-                            "CrowdMeterCard" -> Icons.Default.BarChart
-                            else -> Icons.Default.CreditCard
-                        },
-                        contentDescription = null,
-                        tint = MaterialTheme.colorScheme.onPrimaryContainer
-                    )
-                }
-            }
+            // Card image thumbnail
+            AsyncImage(
+                model = ImageUtils.buildCardImageRequest(context, card.dbUuid, thumbnail = true),
+                contentDescription = card.name,
+                modifier = Modifier
+                    .size(64.dp)
+                    .aspectRatio(0.7f),
+                contentScale = ContentScale.Crop
+            )
 
             Spacer(modifier = Modifier.width(12.dp))
 

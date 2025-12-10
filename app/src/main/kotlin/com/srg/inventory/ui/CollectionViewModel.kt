@@ -566,4 +566,14 @@ class CollectionViewModel(application: Application) : AndroidViewModel(applicati
     fun clearError() {
         _errorMessage.value = null
     }
+
+    // ==================== Related Cards Operations ====================
+
+    suspend fun getRelatedFinishes(cardUuid: String): List<Card> {
+        return repository.getRelatedFinishes(cardUuid)
+    }
+
+    suspend fun getRelatedCards(cardUuid: String): List<Card> {
+        return repository.getRelatedCards(cardUuid)
+    }
 }

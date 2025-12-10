@@ -19,6 +19,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.core.content.FileProvider
 import androidx.lifecycle.viewmodel.compose.viewModel
@@ -795,6 +796,8 @@ fun DeckSlotItem(
     onClear: (() -> Unit)?,
     modifier: Modifier = Modifier
 ) {
+    val context = LocalContext.current
+
     Card(
         modifier = modifier.fillMaxWidth(),
         elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
@@ -804,22 +807,33 @@ fun DeckSlotItem(
                 .fillMaxWidth()
                 .clickable(onClick = onClick)
                 .padding(12.dp),
-            verticalAlignment = Alignment.CenterVertically
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(12.dp)
         ) {
             // Slot label
             Text(
                 text = label,
                 style = MaterialTheme.typography.labelMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
-                modifier = Modifier.width(80.dp)
+                modifier = Modifier.width(60.dp)
             )
 
-            // Card name or empty
+            // Card thumbnail and name or empty
             if (card != null) {
+                coil.compose.AsyncImage(
+                    model = com.srg.inventory.utils.ImageUtils.buildCardImageRequest(context, card.dbUuid, thumbnail = true),
+                    contentDescription = card.name,
+                    modifier = Modifier
+                        .size(48.dp)
+                        .aspectRatio(0.7f),
+                    contentScale = ContentScale.Crop
+                )
                 Text(
                     text = card.name,
                     style = MaterialTheme.typography.bodyMedium,
-                    modifier = Modifier.weight(1f)
+                    modifier = Modifier.weight(1f),
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
                 )
                 if (onClear != null) {
                     IconButton(

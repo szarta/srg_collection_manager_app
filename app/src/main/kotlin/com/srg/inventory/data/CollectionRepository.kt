@@ -183,4 +183,12 @@ class CollectionRepository(
 
     suspend fun getQuantityInFolder(folderId: String, cardUuid: String): Int? =
         folderCardDao.getQuantityInFolder(folderId, cardUuid)
+
+    // ==================== Related Cards Operations ====================
+
+    suspend fun getRelatedFinishes(cardUuid: String): List<Card> =
+        cardDao.getRelatedFinishes(cardUuid)
+
+    suspend fun getRelatedCards(cardUuid: String): List<Card> =
+        cardDao.getRelatedCards(cardUuid)
 }

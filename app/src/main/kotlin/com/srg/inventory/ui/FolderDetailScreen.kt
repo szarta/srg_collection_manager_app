@@ -5,6 +5,7 @@ import android.net.Uri
 import android.widget.Toast
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -181,7 +182,8 @@ fun FolderDetailScreen(
     cardToView?.let { cardWithQty ->
         CardDetailDialog(
             card = cardWithQty.card,
-            onDismiss = { cardToView = null }
+            onDismiss = { cardToView = null },
+            viewModel = viewModel
         )
     }
 
@@ -372,29 +374,15 @@ fun CardInFolderItem(
                 .padding(12.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            // Card icon/placeholder
-            Surface(
-                modifier = Modifier.size(48.dp),
-                color = MaterialTheme.colorScheme.primaryContainer,
-                shape = MaterialTheme.shapes.small
-            ) {
-                Box(contentAlignment = Alignment.Center) {
-                    Icon(
-                        imageVector = when (cardWithQuantity.card.cardType) {
-                            "MainDeckCard" -> Icons.Default.Style
-                            "SingleCompetitorCard" -> Icons.Default.Person
-                            "TornadoCompetitorCard" -> Icons.Default.Groups
-                            "TrioCompetitorCard" -> Icons.Default.Groups3
-                            "EntranceCard" -> Icons.Default.MeetingRoom
-                            "SpectacleCard" -> Icons.Default.AutoAwesome
-                            "CrowdMeterCard" -> Icons.Default.BarChart
-                            else -> Icons.Default.CreditCard
-                        },
-                        contentDescription = null,
-                        tint = MaterialTheme.colorScheme.onPrimaryContainer
-                    )
-                }
-            }
+            // Card image thumbnail
+            AsyncImage(
+                model = ImageUtils.buildCardImageRequest(LocalContext.current, cardWithQuantity.card.dbUuid, thumbnail = true),
+                contentDescription = cardWithQuantity.card.name,
+                modifier = Modifier
+                    .size(64.dp)
+                    .aspectRatio(0.7f),
+                contentScale = ContentScale.Crop
+            )
 
             Spacer(modifier = Modifier.width(12.dp))
 
@@ -511,9 +499,22 @@ fun EmptyFolderState(
 @Composable
 fun CardDetailDialog(
     card: Card,
-    onDismiss: () -> Unit
+    onDismiss: () -> Unit,
+    viewModel: CollectionViewModel
 ) {
     val context = LocalContext.current
+    val scope = rememberCoroutineScope()
+
+    var relatedFinishes by remember { mutableStateOf<List<Card>>(emptyList()) }
+    var relatedCards by remember { mutableStateOf<List<Card>>(emptyList()) }
+    var selectedRelatedCard by remember { mutableStateOf<Card?>(null) }
+
+    LaunchedEffect(card.dbUuid) {
+        scope.launch {
+            relatedFinishes = viewModel.getRelatedFinishes(card.dbUuid)
+            relatedCards = viewModel.getRelatedCards(card.dbUuid)
+        }
+    }
 
     AlertDialog(
         onDismissRequest = onDismiss,
@@ -552,7 +553,7 @@ fun CardDetailDialog(
                 // Stats for competitors
                 if (card.isCompetitor) {
                     item {
-                        Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                        Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                             Text(
                                 text = "Stats",
                                 style = MaterialTheme.typography.labelMedium,
@@ -562,12 +563,12 @@ fun CardDetailDialog(
                                 modifier = Modifier.fillMaxWidth(),
                                 horizontalArrangement = Arrangement.SpaceAround
                             ) {
-                                CompetitorStatItem("PWR", card.power)
-                                CompetitorStatItem("AGI", card.agility)
-                                CompetitorStatItem("STR", card.strike)
-                                CompetitorStatItem("SUB", card.submission)
-                                CompetitorStatItem("GRP", card.grapple)
-                                CompetitorStatItem("TEC", card.technique)
+                                CompetitorStatItemWithColor("Strike", "STR", card.strike)
+                                CompetitorStatItemWithColor("Power", "PWR", card.power)
+                                CompetitorStatItemWithColor("Agility", "AGI", card.agility)
+                                CompetitorStatItemWithColor("Technique", "TEC", card.technique)
+                                CompetitorStatItemWithColor("Grapple", "GRP", card.grapple)
+                                CompetitorStatItemWithColor("Submission", "SUB", card.submission)
                             }
                             card.division?.let {
                                 Text(
@@ -646,6 +647,144 @@ fun CardDetailDialog(
                     }
                 }
 
+                // Related Finishes
+                if (relatedFinishes.isNotEmpty()) {
+                    item {
+                        Surface(
+                            color = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.3f),
+                            shape = MaterialTheme.shapes.small
+                        ) {
+                            Column(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(12.dp),
+                                verticalArrangement = Arrangement.spacedBy(8.dp)
+                            ) {
+                                Row(
+                                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Icon(
+                                        Icons.Default.AutoAwesome,
+                                        contentDescription = null,
+                                        tint = MaterialTheme.colorScheme.primary,
+                                        modifier = Modifier.size(20.dp)
+                                    )
+                                    Text(
+                                        text = "Related Finishes",
+                                        style = MaterialTheme.typography.labelMedium,
+                                        fontWeight = FontWeight.Bold
+                                    )
+                                }
+                                relatedFinishes.forEach { finish ->
+                                    Card(
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .clickable { selectedRelatedCard = finish },
+                                        colors = CardDefaults.cardColors(
+                                            containerColor = MaterialTheme.colorScheme.surface
+                                        )
+                                    ) {
+                                        Row(
+                                            modifier = Modifier.padding(8.dp),
+                                            horizontalArrangement = Arrangement.spacedBy(8.dp),
+                                            verticalAlignment = Alignment.CenterVertically
+                                        ) {
+                                            AsyncImage(
+                                                model = ImageUtils.buildCardImageRequest(context, finish.dbUuid, thumbnail = true),
+                                                contentDescription = finish.name,
+                                                modifier = Modifier
+                                                    .size(40.dp)
+                                                    .aspectRatio(0.7f),
+                                                contentScale = ContentScale.Crop
+                                            )
+                                            Text(
+                                                text = finish.name,
+                                                style = MaterialTheme.typography.bodySmall,
+                                                modifier = Modifier.weight(1f)
+                                            )
+                                            Icon(
+                                                Icons.Default.ChevronRight,
+                                                contentDescription = "View",
+                                                modifier = Modifier.size(16.dp)
+                                            )
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+
+                // Related Cards
+                if (relatedCards.isNotEmpty()) {
+                    item {
+                        Surface(
+                            color = MaterialTheme.colorScheme.tertiaryContainer.copy(alpha = 0.3f),
+                            shape = MaterialTheme.shapes.small
+                        ) {
+                            Column(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(12.dp),
+                                verticalArrangement = Arrangement.spacedBy(8.dp)
+                            ) {
+                                Row(
+                                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Icon(
+                                        Icons.Default.Link,
+                                        contentDescription = null,
+                                        tint = MaterialTheme.colorScheme.tertiary,
+                                        modifier = Modifier.size(20.dp)
+                                    )
+                                    Text(
+                                        text = "Related Cards",
+                                        style = MaterialTheme.typography.labelMedium,
+                                        fontWeight = FontWeight.Bold
+                                    )
+                                }
+                                relatedCards.forEach { relatedCard ->
+                                    Card(
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .clickable { selectedRelatedCard = relatedCard },
+                                        colors = CardDefaults.cardColors(
+                                            containerColor = MaterialTheme.colorScheme.surface
+                                        )
+                                    ) {
+                                        Row(
+                                            modifier = Modifier.padding(8.dp),
+                                            horizontalArrangement = Arrangement.spacedBy(8.dp),
+                                            verticalAlignment = Alignment.CenterVertically
+                                        ) {
+                                            AsyncImage(
+                                                model = ImageUtils.buildCardImageRequest(context, relatedCard.dbUuid, thumbnail = true),
+                                                contentDescription = relatedCard.name,
+                                                modifier = Modifier
+                                                    .size(40.dp)
+                                                    .aspectRatio(0.7f),
+                                                contentScale = ContentScale.Crop
+                                            )
+                                            Text(
+                                                text = relatedCard.name,
+                                                style = MaterialTheme.typography.bodySmall,
+                                                modifier = Modifier.weight(1f)
+                                            )
+                                            Icon(
+                                                Icons.Default.ChevronRight,
+                                                contentDescription = "View",
+                                                modifier = Modifier.size(16.dp)
+                                            )
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+
                 // Release set
                 card.releaseSet?.let { set ->
                     item {
@@ -664,6 +803,15 @@ fun CardDetailDialog(
             }
         }
     )
+
+    // Show related card detail recursively
+    selectedRelatedCard?.let { relatedCard ->
+        CardDetailDialog(
+            card = relatedCard,
+            onDismiss = { selectedRelatedCard = null },
+            viewModel = viewModel
+        )
+    }
 }
 
 @Composable
@@ -758,6 +906,46 @@ private fun CompetitorStatItem(label: String, value: Int?) {
             style = MaterialTheme.typography.bodyMedium,
             fontWeight = FontWeight.Bold
         )
+    }
+}
+
+@Composable
+private fun CompetitorStatItemWithColor(statName: String, label: String, value: Int?) {
+    val backgroundColor = when (statName) {
+        "Strike" -> androidx.compose.ui.graphics.Color(0xFFFFD700) // Yellow
+        "Power" -> androidx.compose.ui.graphics.Color(0xFFFF6B6B) // Red
+        "Agility" -> androidx.compose.ui.graphics.Color(0xFF51CF66) // Green
+        "Technique" -> androidx.compose.ui.graphics.Color(0xFFFF922B) // Orange
+        "Grapple" -> androidx.compose.ui.graphics.Color(0xFF4DABF7) // Blue
+        "Submission" -> androidx.compose.ui.graphics.Color(0xFFCC5DE8) // Purple
+        else -> MaterialTheme.colorScheme.primaryContainer
+    }
+
+    Column(
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.spacedBy(4.dp)
+    ) {
+        Text(
+            text = label,
+            style = MaterialTheme.typography.labelSmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant
+        )
+        Surface(
+            modifier = Modifier.size(40.dp),
+            shape = androidx.compose.foundation.shape.CircleShape,
+            color = backgroundColor
+        ) {
+            Box(
+                contentAlignment = Alignment.Center
+            ) {
+                Text(
+                    text = value?.toString() ?: "-",
+                    style = MaterialTheme.typography.bodyMedium,
+                    fontWeight = FontWeight.Bold,
+                    color = androidx.compose.ui.graphics.Color.White
+                )
+            }
+        }
     }
 }
 

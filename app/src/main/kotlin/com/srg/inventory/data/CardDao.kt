@@ -100,4 +100,33 @@ interface CardDao {
 
     @Query("SELECT synced_at FROM cards ORDER BY synced_at DESC LIMIT 1")
     suspend fun getLastSyncTime(): Long?
+
+    // Related cards queries
+    @Query("""
+        SELECT cards.* FROM cards
+        INNER JOIN card_related_finishes ON cards.db_uuid = card_related_finishes.finish_uuid
+        WHERE card_related_finishes.card_uuid = :cardUuid
+        ORDER BY cards.name ASC
+    """)
+    suspend fun getRelatedFinishes(cardUuid: String): List<Card>
+
+    @Query("""
+        SELECT cards.* FROM cards
+        INNER JOIN card_related_cards ON cards.db_uuid = card_related_cards.related_uuid
+        WHERE card_related_cards.card_uuid = :cardUuid
+        ORDER BY cards.name ASC
+    """)
+    suspend fun getRelatedCards(cardUuid: String): List<Card>
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun insertRelatedFinish(relatedFinish: CardRelatedFinish)
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun insertRelatedFinishes(relatedFinishes: List<CardRelatedFinish>)
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun insertRelatedCard(relatedCard: CardRelatedCard)
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun insertRelatedCards(relatedCards: List<CardRelatedCard>)
 }
