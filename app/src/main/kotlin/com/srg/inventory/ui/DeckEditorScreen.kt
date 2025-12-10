@@ -1258,6 +1258,20 @@ private fun DeckCardDetailDialog(
     onDismiss: () -> Unit
 ) {
     val context = LocalContext.current
+    val scope = rememberCoroutineScope()
+    val database = remember { UserCardDatabase.getDatabase(context) }
+    val cardDao = remember { database.cardDao() }
+
+    var relatedFinishes by remember { mutableStateOf<List<Card>>(emptyList()) }
+    var relatedCards by remember { mutableStateOf<List<Card>>(emptyList()) }
+    var selectedRelatedCard by remember { mutableStateOf<Card?>(null) }
+
+    LaunchedEffect(card.dbUuid) {
+        scope.launch {
+            relatedFinishes = cardDao.getRelatedFinishes(card.dbUuid)
+            relatedCards = cardDao.getRelatedCards(card.dbUuid)
+        }
+    }
 
     AlertDialog(
         onDismissRequest = onDismiss,
@@ -1296,7 +1310,7 @@ private fun DeckCardDetailDialog(
                 // Stats for competitors
                 if (card.isCompetitor) {
                     item {
-                        Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                        Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                             Text(
                                 text = "Stats",
                                 style = MaterialTheme.typography.labelMedium,
@@ -1306,12 +1320,12 @@ private fun DeckCardDetailDialog(
                                 modifier = Modifier.fillMaxWidth(),
                                 horizontalArrangement = Arrangement.SpaceAround
                             ) {
-                                CompetitorStatItem("PWR", card.power)
-                                CompetitorStatItem("AGI", card.agility)
-                                CompetitorStatItem("STR", card.strike)
-                                CompetitorStatItem("SUB", card.submission)
-                                CompetitorStatItem("GRP", card.grapple)
-                                CompetitorStatItem("TEC", card.technique)
+                                DeckCompetitorStatItemWithColor("Power", "PWR", card.power)
+                                DeckCompetitorStatItemWithColor("Technique", "TEC", card.technique)
+                                DeckCompetitorStatItemWithColor("Agility", "AGI", card.agility)
+                                DeckCompetitorStatItemWithColor("Strike", "STR", card.strike)
+                                DeckCompetitorStatItemWithColor("Submission", "SUB", card.submission)
+                                DeckCompetitorStatItemWithColor("Grapple", "GRP", card.grapple)
                             }
                             card.division?.let {
                                 Text(
@@ -1390,6 +1404,144 @@ private fun DeckCardDetailDialog(
                     }
                 }
 
+                // Related Finishes
+                if (relatedFinishes.isNotEmpty()) {
+                    item {
+                        Surface(
+                            color = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.3f),
+                            shape = MaterialTheme.shapes.small
+                        ) {
+                            Column(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(12.dp),
+                                verticalArrangement = Arrangement.spacedBy(8.dp)
+                            ) {
+                                Row(
+                                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Icon(
+                                        Icons.Default.AutoAwesome,
+                                        contentDescription = null,
+                                        tint = MaterialTheme.colorScheme.primary,
+                                        modifier = Modifier.size(20.dp)
+                                    )
+                                    Text(
+                                        text = "Related Finishes",
+                                        style = MaterialTheme.typography.labelMedium,
+                                        fontWeight = FontWeight.Bold
+                                    )
+                                }
+                                relatedFinishes.forEach { finish ->
+                                    androidx.compose.material3.Card(
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .clickable { selectedRelatedCard = finish },
+                                        colors = CardDefaults.cardColors(
+                                            containerColor = MaterialTheme.colorScheme.surface
+                                        )
+                                    ) {
+                                        Row(
+                                            modifier = Modifier.padding(8.dp),
+                                            horizontalArrangement = Arrangement.spacedBy(8.dp),
+                                            verticalAlignment = Alignment.CenterVertically
+                                        ) {
+                                            coil.compose.AsyncImage(
+                                                model = com.srg.inventory.utils.ImageUtils.buildCardImageRequest(context, finish.dbUuid, thumbnail = true),
+                                                contentDescription = finish.name,
+                                                modifier = Modifier
+                                                    .size(40.dp)
+                                                    .aspectRatio(0.7f),
+                                                contentScale = ContentScale.Crop
+                                            )
+                                            Text(
+                                                text = finish.name,
+                                                style = MaterialTheme.typography.bodySmall,
+                                                modifier = Modifier.weight(1f)
+                                            )
+                                            Icon(
+                                                Icons.Default.ChevronRight,
+                                                contentDescription = "View",
+                                                modifier = Modifier.size(16.dp)
+                                            )
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+
+                // Related Cards
+                if (relatedCards.isNotEmpty()) {
+                    item {
+                        Surface(
+                            color = MaterialTheme.colorScheme.tertiaryContainer.copy(alpha = 0.3f),
+                            shape = MaterialTheme.shapes.small
+                        ) {
+                            Column(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(12.dp),
+                                verticalArrangement = Arrangement.spacedBy(8.dp)
+                            ) {
+                                Row(
+                                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Icon(
+                                        Icons.Default.Link,
+                                        contentDescription = null,
+                                        tint = MaterialTheme.colorScheme.tertiary,
+                                        modifier = Modifier.size(20.dp)
+                                    )
+                                    Text(
+                                        text = "Related Cards",
+                                        style = MaterialTheme.typography.labelMedium,
+                                        fontWeight = FontWeight.Bold
+                                    )
+                                }
+                                relatedCards.forEach { relatedCard ->
+                                    androidx.compose.material3.Card(
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .clickable { selectedRelatedCard = relatedCard },
+                                        colors = CardDefaults.cardColors(
+                                            containerColor = MaterialTheme.colorScheme.surface
+                                        )
+                                    ) {
+                                        Row(
+                                            modifier = Modifier.padding(8.dp),
+                                            horizontalArrangement = Arrangement.spacedBy(8.dp),
+                                            verticalAlignment = Alignment.CenterVertically
+                                        ) {
+                                            coil.compose.AsyncImage(
+                                                model = com.srg.inventory.utils.ImageUtils.buildCardImageRequest(context, relatedCard.dbUuid, thumbnail = true),
+                                                contentDescription = relatedCard.name,
+                                                modifier = Modifier
+                                                    .size(40.dp)
+                                                    .aspectRatio(0.7f),
+                                                contentScale = ContentScale.Crop
+                                            )
+                                            Text(
+                                                text = relatedCard.name,
+                                                style = MaterialTheme.typography.bodySmall,
+                                                modifier = Modifier.weight(1f)
+                                            )
+                                            Icon(
+                                                Icons.Default.ChevronRight,
+                                                contentDescription = "View",
+                                                modifier = Modifier.size(16.dp)
+                                            )
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+
                 // Release set
                 card.releaseSet?.let { set ->
                     item {
@@ -1408,23 +1560,53 @@ private fun DeckCardDetailDialog(
             }
         }
     )
+
+    // Show related card detail dialog if selected
+    selectedRelatedCard?.let { relCard ->
+        DeckCardDetailDialog(
+            card = relCard,
+            onDismiss = { selectedRelatedCard = null }
+        )
+    }
 }
 
 @Composable
-private fun CompetitorStatItem(label: String, value: Int?) {
+private fun DeckCompetitorStatItemWithColor(statName: String, label: String, value: Int?) {
+    val backgroundColor = when (statName) {
+        "Strike" -> androidx.compose.ui.graphics.Color(0xFFFFD700) // Yellow
+        "Power" -> androidx.compose.ui.graphics.Color(0xFFFF6B6B) // Red
+        "Agility" -> androidx.compose.ui.graphics.Color(0xFF51CF66) // Green
+        "Technique" -> androidx.compose.ui.graphics.Color(0xFFFF922B) // Orange
+        "Grapple" -> androidx.compose.ui.graphics.Color(0xFF4DABF7) // Blue
+        "Submission" -> androidx.compose.ui.graphics.Color(0xFFCC5DE8) // Purple
+        else -> MaterialTheme.colorScheme.primaryContainer
+    }
+
     Column(
-        horizontalAlignment = Alignment.CenterHorizontally
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.spacedBy(4.dp)
     ) {
         Text(
             text = label,
             style = MaterialTheme.typography.labelSmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant
         )
-        Text(
-            text = value?.toString() ?: "-",
-            style = MaterialTheme.typography.bodyMedium,
-            fontWeight = FontWeight.Bold
-        )
+        Surface(
+            modifier = Modifier.size(40.dp),
+            shape = androidx.compose.foundation.shape.CircleShape,
+            color = backgroundColor
+        ) {
+            Box(
+                contentAlignment = Alignment.Center
+            ) {
+                Text(
+                    text = value?.toString() ?: "-",
+                    style = MaterialTheme.typography.bodyMedium,
+                    fontWeight = FontWeight.Bold,
+                    color = androidx.compose.ui.graphics.Color.White
+                )
+            }
+        }
     }
 }
 

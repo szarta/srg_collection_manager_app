@@ -9,6 +9,8 @@ Android app for managing your SRG Supershow wrestling card collection and buildi
 - **Card Database Sync** - Hash-based sync downloads only when server has updates (preserves user data)
 - **Bundled Images** - ✨ 3,481 mobile-optimized card images (158MB) bundled with app for offline use
 - **Card Images in Detail Views** - Full card images with stats, rules, and errata in detail dialogs
+- **Colored Competitor Stats** - ✨ iOS-like circular stat badges with color-coded stats (Power/Red, Technique/Orange, Agility/Green, Strike/Yellow, Submission/Purple, Grapple/Blue)
+- **Related Cards & Finishes** - ✨ Discover card variants and finishes directly from card detail screens, tap to explore recursively
 - **4-Tab Navigation** - Clean bottom nav: Collection | Decks | Viewer | Settings
 - **Folder-Based Collection Management** - Organize cards in custom folders (Owned, Wanted, Trade, + custom)
 - **Card Database Sync** - Sync from get-diced.com to get latest cards and updates (Settings screen)

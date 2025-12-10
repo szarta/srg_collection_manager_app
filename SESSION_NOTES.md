@@ -1,3 +1,73 @@
+# Session Notes - Dec 10, 2025
+
+## What Was Completed This Session ✅
+
+### iOS-Like Card Detail Enhancements (COMPLETED)
+
+**Goal:** Add colored competitor stats and related cards/finishes to deck and viewer card detail screens
+
+**Features Implemented:**
+
+1. **Colored Competitor Stats** (All Three Detail Dialogs)
+   - **Collection Detail** (`FolderDetailScreen.kt:566-571`) - Already had colored stats
+   - **Deck Detail** (`DeckEditorScreen.kt:1323-1328`) - Added colored stat circles
+   - **Viewer Detail** (`CardSearchScreen.kt:393-398`) - Added colored stat circles
+   - **Color Scheme**:
+     - Power (PWR) - Red (#FF6B6B)
+     - Technique (TEC) - Orange (#FF922B)
+     - Agility (AGI) - Green (#51CF66)
+     - Strike (STR) - Yellow (#FFD700)
+     - Submission (SUB) - Purple (#CC5DE8)
+     - Grapple (GRP) - Blue (#4DABF7)
+   - **Design**: iOS-like circular badges (40dp) with white text
+   - **Stat Order**: Power → Technique → Agility → Strike → Submission → Grapple (consistent across all screens)
+
+2. **Related Cards & Finishes** (Deck and Viewer Screens)
+   - **Deck Detail Dialog** (`DeckEditorScreen.kt:1407-1543`)
+     - Added related finishes section with clickable cards
+     - Added related cards section with clickable cards
+     - Uses existing `cardDao.getRelatedFinishes()` and `cardDao.getRelatedCards()` functions
+     - Recursive viewing - tap any related card to view its details
+   - **Viewer Detail Dialog** (`CardSearchScreen.kt:507-643`)
+     - Added related finishes section (primary container background)
+     - Added related cards section (tertiary container background)
+     - Same clickable interface as collection detail
+     - Fetches data from database via LaunchedEffect
+
+3. **UI Consistency**
+   - All three card detail screens now have:
+     - Colored stat circles for competitor cards
+     - Related finishes section (when available)
+     - Related cards section (when available)
+     - Consistent stat ordering
+     - Unified visual design language
+   - Material 3 design with icons:
+     - ✨ AutoAwesome icon for Related Finishes
+     - 🔗 Link icon for Related Cards
+
+**Files Modified:**
+- `app/src/main/kotlin/com/srg/inventory/ui/FolderDetailScreen.kt` - Updated stat order
+- `app/src/main/kotlin/com/srg/inventory/ui/DeckEditorScreen.kt` - Added colored stats, related cards/finishes
+- `app/src/main/kotlin/com/srg/inventory/ui/CardSearchScreen.kt` - Added colored stats, related cards/finishes, import statement
+
+**User Experience:**
+- ✅ Consistent colored stat display across all card views
+- ✅ Easy identification of stat types by color
+- ✅ Discover related card variants and finishes
+- ✅ Tap to recursively explore related cards
+- ✅ Professional iOS-like circular stat badges
+- ✅ Clear visual hierarchy with section backgrounds
+
+**Version Update:**
+- **Version**: 1.0.12 (versionCode 15)
+- **Previous**: 1.0.11 (versionCode 14)
+
+**Release Build:**
+- **AAB Location**: `app/build/outputs/bundle/release/app-release.aab`
+- **Ready For**: Production release to Google Play
+
+---
+
 # Session Notes - Dec 6, 2025
 
 ## What Was Completed This Session ✅

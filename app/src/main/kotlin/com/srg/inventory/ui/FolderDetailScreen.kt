@@ -563,12 +563,12 @@ fun CardDetailDialog(
                                 modifier = Modifier.fillMaxWidth(),
                                 horizontalArrangement = Arrangement.SpaceAround
                             ) {
-                                CompetitorStatItemWithColor("Strike", "STR", card.strike)
                                 CompetitorStatItemWithColor("Power", "PWR", card.power)
-                                CompetitorStatItemWithColor("Agility", "AGI", card.agility)
                                 CompetitorStatItemWithColor("Technique", "TEC", card.technique)
-                                CompetitorStatItemWithColor("Grapple", "GRP", card.grapple)
+                                CompetitorStatItemWithColor("Agility", "AGI", card.agility)
+                                CompetitorStatItemWithColor("Strike", "STR", card.strike)
                                 CompetitorStatItemWithColor("Submission", "SUB", card.submission)
+                                CompetitorStatItemWithColor("Grapple", "GRP", card.grapple)
                             }
                             card.division?.let {
                                 Text(
