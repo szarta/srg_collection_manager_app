@@ -996,20 +996,38 @@ fun CardPickerDialog(
                                 color = MaterialTheme.colorScheme.surfaceVariant,
                                 shape = MaterialTheme.shapes.small
                             ) {
-                                Column(
-                                    modifier = Modifier.padding(12.dp)
+                                Row(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .padding(12.dp),
+                                    verticalAlignment = Alignment.CenterVertically
                                 ) {
-                                    Text(
-                                        text = card.name,
-                                        style = MaterialTheme.typography.bodyMedium,
-                                        fontWeight = FontWeight.Medium
+                                    // Card image thumbnail
+                                    coil.compose.AsyncImage(
+                                        model = com.srg.inventory.utils.ImageUtils.buildCardImageRequest(context, card.dbUuid, thumbnail = true),
+                                        contentDescription = card.name,
+                                        modifier = Modifier
+                                            .size(64.dp)
+                                            .aspectRatio(0.7f),
+                                        contentScale = ContentScale.Crop
                                     )
-                                    if (card.cardType == "MainDeckCard" && card.deckCardNumber != null) {
+
+                                    Spacer(modifier = Modifier.width(12.dp))
+
+                                    // Card info
+                                    Column(modifier = Modifier.weight(1f)) {
                                         Text(
-                                            text = "#${card.deckCardNumber}",
-                                            style = MaterialTheme.typography.bodySmall,
-                                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                                            text = card.name,
+                                            style = MaterialTheme.typography.bodyMedium,
+                                            fontWeight = FontWeight.Medium
                                         )
+                                        if (card.cardType == "MainDeckCard" && card.deckCardNumber != null) {
+                                            Text(
+                                                text = "#${card.deckCardNumber}",
+                                                style = MaterialTheme.typography.bodySmall,
+                                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                                            )
+                                        }
                                     }
                                 }
                             }
@@ -1060,7 +1078,7 @@ private suspend fun exportDeckToCsv(
                 for (cardWithDetails in sortedCards) {
                     val slotType = cardWithDetails.slotType.name
                     val slotNumber = cardWithDetails.slotNumber
-                    val cardName = cardWithDetails.card.name.replace("\"", "\"\"")
+                    val cardName = cardWithDetails.card.name.replace(",", "--").replace("\"", "\"\"")  // CSV standard: double-up quotes
                     writer.write("$slotType,$slotNumber,\"$cardName\"\n")
                 }
             }
@@ -1120,7 +1138,7 @@ private suspend fun importDeckFromCsv(
                 if (parts.size >= 3) {
                     val slotTypeStr = parts[0].trim().uppercase()
                     val slotNumber = parts[1].trim().toIntOrNull() ?: 0
-                    val cardName = parts[2].trim().trim('"')
+                    val cardName = parts[2].trim().trim('"').replace("--", ",")
 
                     // Find card by name
                     val card = cardDao.getCardByName(cardName)
@@ -1147,11 +1165,38 @@ private suspend fun importDeckFromCsv(
                 }
             }
 
+            // Write not-found cards to log file
+            var logFilePath: String? = null
+            if (notFound.isNotEmpty()) {
+                try {
+                    val logFile = File(context.getExternalFilesDir(null), "deck_import_not_found.log")
+                    logFile.bufferedWriter().use { writer ->
+                        writer.write("Deck Import Failed Cards Log\n")
+                        writer.write("Generated: ${java.text.SimpleDateFormat("yyyy-MM-dd HH:mm:ss", java.util.Locale.US).format(java.util.Date())}\n")
+                        writer.write("Total not found: ${notFound.size}\n")
+                        writer.write("---\n\n")
+                        notFound.forEach { name ->
+                            writer.write("$name\n")
+                        }
+                    }
+                    logFilePath = logFile.absolutePath
+                } catch (e: Exception) {
+                    // If log writing fails, just continue
+                }
+            }
+
             withContext(Dispatchers.Main) {
                 val message = if (notFound.isEmpty()) {
                     "Imported $importedCount cards"
                 } else {
-                    "Imported $importedCount cards. Not found: ${notFound.take(3).joinToString(", ")}${if (notFound.size > 3) "..." else ""}"
+                    buildString {
+                        append("Imported $importedCount cards. ${notFound.size} not found")
+                        if (logFilePath != null) {
+                            append("\nLog saved to: $logFilePath")
+                        } else {
+                            append(": ${notFound.take(3).joinToString(", ")}${if (notFound.size > 3) "..." else ""}")
+                        }
+                    }
                 }
                 Toast.makeText(context, message, Toast.LENGTH_LONG).show()
             }

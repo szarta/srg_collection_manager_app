@@ -84,18 +84,36 @@ class CollectionRepository(
 
     fun searchCardsWithFilters(
         searchQuery: String?,
-        searchScope: String = "all",
+        searchName: Boolean,
+        searchTags: Boolean,
+        searchRulesText: Boolean,
+        cardType: String?,
+        division: String?,
+        deckCardNumbers: List<Int>,
+        hasDeckNumbers: Boolean,
+        minPower: Int,
+        minTechnique: Int,
+        minAgility: Int,
+        minStrike: Int,
+        minSubmission: Int,
+        minGrapple: Int,
+        limit: Int,
+        offset: Int
+    ): Flow<List<Card>> = cardDao.searchCardsWithFilters(
+        searchQuery, searchName, searchTags, searchRulesText, cardType, division,
+        deckCardNumbers, hasDeckNumbers, minPower, minTechnique, minAgility, minStrike, minSubmission, minGrapple, limit, offset
+    )
+
+    suspend fun getCardNameSuggestions(
+        prefix: String,
         cardType: String?,
         atkType: String?,
         playOrder: String?,
         division: String?,
-        deckCardNumber: Int? = null,
-        releaseSet: String?,
-        isBanned: Boolean?,
-        inCollectionFolderId: String? = null,
-        limit: Int = 100
-    ): Flow<List<Card>> = cardDao.searchCardsWithFilters(
-        searchQuery, searchScope, cardType, atkType, playOrder, division, deckCardNumber, releaseSet, isBanned, inCollectionFolderId, limit
+        deckCardNumber: Int?,
+        limit: Int = 20
+    ): List<String> = cardDao.getCardNameSuggestions(
+        prefix, cardType, atkType, playOrder, division, deckCardNumber, limit
     )
 
     suspend fun getAllCardTypes(): List<String> = cardDao.getAllCardTypes()
@@ -183,6 +201,9 @@ class CollectionRepository(
 
     suspend fun getQuantityInFolder(folderId: String, cardUuid: String): Int? =
         folderCardDao.getQuantityInFolder(folderId, cardUuid)
+
+    suspend fun clearFolder(folderId: String) =
+        folderCardDao.removeAllCardsFromFolder(folderId)
 
     // ==================== Related Cards Operations ====================
 

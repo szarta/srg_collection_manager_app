@@ -106,70 +106,154 @@ class CollectionViewModel(application: Application) : AndroidViewModel(applicati
     private val _searchQuery = MutableStateFlow("")
     val searchQuery: StateFlow<String> = _searchQuery.asStateFlow()
 
-    private val _searchScope = MutableStateFlow("all") // "all", "name", "rules", "tags"
-    val searchScope: StateFlow<String> = _searchScope.asStateFlow()
+    // Search scopes - multi-select: name, tags, rules_text (all enabled by default)
+    private val _searchScopes = MutableStateFlow(setOf("name", "tags", "rules_text"))
+    val searchScopes: StateFlow<Set<String>> = _searchScopes.asStateFlow()
 
     private val _selectedCardType = MutableStateFlow<String?>(null)
     val selectedCardType: StateFlow<String?> = _selectedCardType.asStateFlow()
 
-    private val _selectedAtkType = MutableStateFlow<String?>(null)
-    val selectedAtkType: StateFlow<String?> = _selectedAtkType.asStateFlow()
+    // Multi-select deck card numbers (for MainDeckCard)
+    private val _selectedDeckCardNumbers = MutableStateFlow<Set<Int>>(emptySet())
+    val selectedDeckCardNumbers: StateFlow<Set<Int>> = _selectedDeckCardNumbers.asStateFlow()
 
-    private val _selectedPlayOrder = MutableStateFlow<String?>(null)
-    val selectedPlayOrder: StateFlow<String?> = _selectedPlayOrder.asStateFlow()
+    // Stats filters - minimum values (5-30, default 5)
+    private val _minPower = MutableStateFlow<Int>(5)
+    val minPower: StateFlow<Int> = _minPower.asStateFlow()
+
+    private val _minTechnique = MutableStateFlow<Int>(5)
+    val minTechnique: StateFlow<Int> = _minTechnique.asStateFlow()
+
+    private val _minAgility = MutableStateFlow<Int>(5)
+    val minAgility: StateFlow<Int> = _minAgility.asStateFlow()
+
+    private val _minStrike = MutableStateFlow<Int>(5)
+    val minStrike: StateFlow<Int> = _minStrike.asStateFlow()
+
+    private val _minSubmission = MutableStateFlow<Int>(5)
+    val minSubmission: StateFlow<Int> = _minSubmission.asStateFlow()
+
+    private val _minGrapple = MutableStateFlow<Int>(5)
+    val minGrapple: StateFlow<Int> = _minGrapple.asStateFlow()
 
     private val _selectedDivision = MutableStateFlow<String?>(null)
     val selectedDivision: StateFlow<String?> = _selectedDivision.asStateFlow()
 
-    private val _selectedDeckCardNumber = MutableStateFlow<Int?>(null)
-    val selectedDeckCardNumber: StateFlow<Int?> = _selectedDeckCardNumber.asStateFlow()
-
     private val _inCollectionFolderId = MutableStateFlow<String?>(null)
     val inCollectionFolderId: StateFlow<String?> = _inCollectionFolderId.asStateFlow()
 
+    // Temporary stubs for backwards compatibility (will be removed in full refactor)
+    val selectedAtkType: StateFlow<String?> = MutableStateFlow<String?>(null).asStateFlow()
+    val selectedPlayOrder: StateFlow<String?> = MutableStateFlow<String?>(null).asStateFlow()
+    val selectedDeckCardNumber: StateFlow<Int?> = MutableStateFlow<Int?>(null).asStateFlow()
+    val searchScope: StateFlow<String> = MutableStateFlow("all").asStateFlow()
+    val autocompleteSuggestions: StateFlow<List<String>> = MutableStateFlow<List<String>>(emptyList()).asStateFlow()
+    val searchSessionId: StateFlow<Int> = MutableStateFlow(1).asStateFlow()
+
+    fun clearAutocompleteSuggestions() {}
+    fun setSearchScope(scope: String) {}
+    fun setAtkTypeFilter(atkType: String?) {}
+    fun setPlayOrderFilter(playOrder: String?) {}
+    fun setDeckCardNumberFilter(deckCardNumber: Int?) {}
+    fun triggerSearch() { applyFilters() }
+    fun loadMoreResults() { loadNextPage() }
+
+    // Pagination state
+    private val _searchOffset = MutableStateFlow(0)
+    val searchOffset: StateFlow<Int> = _searchOffset.asStateFlow()
+
+    private val _hasMoreResults = MutableStateFlow(true)
+    val hasMoreResults: StateFlow<Boolean> = _hasMoreResults.asStateFlow()
+
+    private val _isLoadingMore = MutableStateFlow(false)
+    val isLoadingMore: StateFlow<Boolean> = _isLoadingMore.asStateFlow()
+
     // Filtered card search results (for adding cards to folder)
-    val searchResults: StateFlow<List<Card>> = combine(
-        combine(
-            _searchQuery,
-            _searchScope,
-            _selectedCardType,
-            _selectedAtkType,
-            _selectedPlayOrder
-        ) { arrayOfValues ->
-            arrayOfValues
-        },
-        _selectedDivision,
-        _selectedDeckCardNumber,
-        _inCollectionFolderId
-    ) { arrayOfValues, division, deckCardNumber, collectionFolderId ->
-        val query = arrayOfValues[0] as String
-        val scope = arrayOfValues[1] as String
-        val cardType = arrayOfValues[2] as String?
-        val atkType = arrayOfValues[3] as String?
-        val playOrder = arrayOfValues[4] as String?
-        SearchFilters(query, scope, cardType, atkType, playOrder, division, deckCardNumber, collectionFolderId)
-    }.flatMapLatest { filters ->
-        // Return empty list if no search query and no filters
-        if (filters.query.isBlank() && filters.cardType == null && filters.atkType == null &&
-            filters.playOrder == null && filters.division == null && filters.deckCardNumber == null &&
-            filters.inCollectionFolderId == null) {
-            flowOf(emptyList())
-        } else {
-            repository.searchCardsWithFilters(
-                searchQuery = filters.query.ifBlank { null },
-                searchScope = filters.searchScope,
-                cardType = filters.cardType,
-                atkType = filters.atkType,
-                playOrder = filters.playOrder,
-                division = filters.division,
-                deckCardNumber = filters.deckCardNumber,
-                releaseSet = null,
-                isBanned = null,
-                inCollectionFolderId = filters.inCollectionFolderId,
-                limit = 50
-            )
+    private val _searchResults = MutableStateFlow<List<Card>>(emptyList())
+    val searchResults: StateFlow<List<Card>> = _searchResults.asStateFlow()
+
+    init {
+        // Live search as user types (with 500ms debounce)
+        viewModelScope.launch {
+            _searchQuery
+                .debounce(500)
+                .collect {
+                    _searchResults.value = emptyList()
+                    _searchOffset.value = 0
+                    performSearch()
+                }
         }
-    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+    }
+
+    // Apply filters (called when user clicks Apply in filter dialog)
+    fun applyFilters() {
+        viewModelScope.launch {
+            _searchResults.value = emptyList()
+            _searchOffset.value = 0
+            performSearch(showAll = false)
+        }
+    }
+
+    // Clear all filters and reload all cards
+    fun clearFilters() {
+        _searchQuery.value = ""
+        _searchScopes.value = setOf("name", "tags", "rules_text")
+        _selectedCardType.value = null
+        _selectedDeckCardNumbers.value = emptySet()
+        _selectedDivision.value = null
+        _minPower.value = 5
+        _minTechnique.value = 5
+        _minAgility.value = 5
+        _minStrike.value = 5
+        _minSubmission.value = 5
+        _minGrapple.value = 5
+
+        viewModelScope.launch {
+            _searchResults.value = emptyList()
+            _searchOffset.value = 0
+            performSearch(showAll = true)
+        }
+    }
+
+    private suspend fun performSearch(showAll: Boolean = false) {
+        val newResults = repository.searchCardsWithFilters(
+            searchQuery = if (showAll) null else _searchQuery.value.ifBlank { null },
+            searchName = showAll || _searchScopes.value.contains("name"),
+            searchTags = showAll || _searchScopes.value.contains("tags"),
+            searchRulesText = showAll || _searchScopes.value.contains("rules_text"),
+            cardType = if (showAll) null else _selectedCardType.value,
+            division = if (showAll) null else _selectedDivision.value,
+            deckCardNumbers = if (showAll) emptyList() else _selectedDeckCardNumbers.value.toList(),
+            hasDeckNumbers = !showAll && _selectedDeckCardNumbers.value.isNotEmpty(),
+            minPower = if (showAll) 5 else _minPower.value,
+            minTechnique = if (showAll) 5 else _minTechnique.value,
+            minAgility = if (showAll) 5 else _minAgility.value,
+            minStrike = if (showAll) 5 else _minStrike.value,
+            minSubmission = if (showAll) 5 else _minSubmission.value,
+            minGrapple = if (showAll) 5 else _minGrapple.value,
+            limit = 50,
+            offset = _searchOffset.value
+        ).first()
+
+        if (_searchOffset.value == 0) {
+            _searchResults.value = newResults
+        } else {
+            _searchResults.value = _searchResults.value + newResults
+        }
+        _hasMoreResults.value = newResults.size == 50
+    }
+
+    // Infinite scroll - load next page
+    fun loadNextPage() {
+        if (_isLoadingMore.value || !_hasMoreResults.value) return
+
+        viewModelScope.launch {
+            _isLoadingMore.value = true
+            _searchOffset.value += 50
+            performSearch()
+            _isLoadingMore.value = false
+        }
+    }
 
     // Sync state
     private val _isSyncing = MutableStateFlow(false)
@@ -217,17 +301,6 @@ class CollectionViewModel(application: Application) : AndroidViewModel(applicati
     val divisions: StateFlow<List<String>> = flow {
         emit(repository.getAllDivisions())
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
-
-    data class SearchFilters(
-        val query: String,
-        val searchScope: String,
-        val cardType: String?,
-        val atkType: String?,
-        val playOrder: String?,
-        val division: String?,
-        val deckCardNumber: Int?,
-        val inCollectionFolderId: String?
-    )
 
     init {
         // Ensure default folders exist
@@ -278,6 +351,16 @@ class CollectionViewModel(application: Application) : AndroidViewModel(applicati
                 }
             } catch (e: Exception) {
                 _errorMessage.value = "Failed to rename folder: ${e.message}"
+            }
+        }
+    }
+
+    fun clearFolder(folderId: String) {
+        viewModelScope.launch {
+            try {
+                repository.clearFolder(folderId)
+            } catch (e: Exception) {
+                _errorMessage.value = "Failed to clear folder: ${e.message}"
             }
         }
     }
@@ -336,50 +419,63 @@ class CollectionViewModel(application: Application) : AndroidViewModel(applicati
         _searchQuery.value = query
     }
 
-    fun setSearchScope(scope: String) {
-        _searchScope.value = scope
+    // Filter setter functions
+    fun setSearchScopes(scopes: Set<String>) {
+        _searchScopes.value = scopes
     }
 
     fun setCardTypeFilter(cardType: String?) {
         _selectedCardType.value = cardType
         // Clear type-specific filters when changing card type
         if (cardType != "MainDeckCard") {
-            _selectedAtkType.value = null
-            _selectedPlayOrder.value = null
+            _selectedDeckCardNumbers.value = emptySet()
         }
         if (cardType?.contains("Competitor") != true) {
             _selectedDivision.value = null
+            // Reset stats to default when not competitor
+            _minPower.value = 5
+            _minTechnique.value = 5
+            _minAgility.value = 5
+            _minStrike.value = 5
+            _minSubmission.value = 5
+            _minGrapple.value = 5
         }
     }
 
-    fun setAtkTypeFilter(atkType: String?) {
-        _selectedAtkType.value = atkType
-    }
-
-    fun setPlayOrderFilter(playOrder: String?) {
-        _selectedPlayOrder.value = playOrder
+    fun setDeckCardNumbers(numbers: Set<Int>) {
+        _selectedDeckCardNumbers.value = numbers
     }
 
     fun setDivisionFilter(division: String?) {
         _selectedDivision.value = division
     }
 
-    fun setDeckCardNumberFilter(deckCardNumber: Int?) {
-        _selectedDeckCardNumber.value = deckCardNumber
+    fun setMinPower(value: Int) {
+        _minPower.value = value
+    }
+
+    fun setMinTechnique(value: Int) {
+        _minTechnique.value = value
+    }
+
+    fun setMinAgility(value: Int) {
+        _minAgility.value = value
+    }
+
+    fun setMinStrike(value: Int) {
+        _minStrike.value = value
+    }
+
+    fun setMinSubmission(value: Int) {
+        _minSubmission.value = value
+    }
+
+    fun setMinGrapple(value: Int) {
+        _minGrapple.value = value
     }
 
     fun setInCollectionFolderFilter(folderId: String?) {
         _inCollectionFolderId.value = folderId
-    }
-
-    fun clearFilters() {
-        _selectedCardType.value = null
-        _selectedAtkType.value = null
-        _selectedPlayOrder.value = null
-        _selectedDivision.value = null
-        _selectedDeckCardNumber.value = null
-        _searchScope.value = "all"
-        _inCollectionFolderId.value = null
     }
 
     // ==================== Sync Operations ====================

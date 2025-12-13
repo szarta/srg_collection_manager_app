@@ -5,17 +5,23 @@ Android app for managing your SRG Supershow wrestling card collection and buildi
 ## Features
 
 ### ✅ Implemented
-- **Bundled Database** - ✨ App ships with 3,923 cards pre-loaded (ready to use immediately!)
+- **Bundled Database** - ✨ App ships with 4,618 cards pre-loaded (ready to use immediately!)
 - **Card Database Sync** - Hash-based sync downloads only when server has updates (preserves user data)
-- **Bundled Images** - ✨ 3,481 mobile-optimized card images (158MB) bundled with app for offline use
+- **Bundled Images** - ✨ 4,375 mobile-optimized card images bundled with app for offline use
 - **Card Images in Detail Views** - Full card images with stats, rules, and errata in detail dialogs
 - **Colored Competitor Stats** - ✨ iOS-like circular stat badges with color-coded stats (Power/Red, Technique/Orange, Agility/Green, Strike/Yellow, Submission/Purple, Grapple/Blue)
 - **Related Cards & Finishes** - ✨ Discover card variants and finishes directly from card detail screens, tap to explore recursively
 - **4-Tab Navigation** - Clean bottom nav: Collection | Decks | Viewer | Settings
 - **Folder-Based Collection Management** - Organize cards in custom folders (Owned, Wanted, Trade, + custom)
+  - ✨ **Clear Folder** - Empty folder contents with confirmation dialog
+  - ✨ **CSV Import/Export** - Universal CSV scheme compatible with website exports (commas→`--`, quotes→`""`)
+  - ✨ **Import Logging** - Failed imports logged to `import_not_found.log` for troubleshooting
 - **Card Database Sync** - Sync from get-diced.com to get latest cards and updates (Settings screen)
 - **Advanced Card Search** - Search with type-specific filters (attack type, play order, division, etc.)
   - ✨ **Search Scope Selector** - Filter by All Fields, Name Only, Rules Only, or Tags Only
+  - ✨ **Name Autocomplete** - Smart card name suggestions with 300ms debouncing, filtered by current search criteria
+  - ✨ **Pagination** - Load More button for browsing beyond first 50 results
+  - ✨ **Search Session Tracking** - Results stay consistent when adding multiple cards from the same search (prevents stale results)
   - Dynamic search placeholder updates based on selected scope
 - **Card Viewer** - ✨ **Two-Page Flow** - Dedicated search page with all filters, then results page
   - Search page with all filters including deck card number (1-30) for MainDeckCards
@@ -24,6 +30,7 @@ Android app for managing your SRG Supershow wrestling card collection and buildi
 - **Folder Search** - ✨ Search within specific collection folders by name, rules, or tags (magnifying glass icon)
 - **Smart Quantity Entry** - ✨ +/- buttons (max 999) instead of keyboard for card quantities
 - **Edit Quantity Dialog** - +/- buttons to adjust quantity, delete option to remove cards
+- **Image Previews** - ✨ Card thumbnails in all selection screens (add to folder, deck editor) for easier identification
 - **Multi-Folder Support** - Same card can exist in multiple folders with independent quantities
 - **Offline-First** - Works offline with bundled database + images, sync for latest updates
 - **7 Card Types Supported** - MainDeck, SingleCompetitor, TornadoCompetitor, TrioCompetitor, Entrance, Spectacle, CrowdMeter
@@ -44,7 +51,7 @@ Android app for managing your SRG Supershow wrestling card collection and buildi
   - Works in both portrait and landscape orientations
   - Dialogs persist through screen rotation
 
-**Note:** New cards are released regularly (~10/month) and the database is actively being updated. The bundled database provides a great starting point, but syncing is recommended to get the latest cards and updates.
+**Note:** New cards are released regularly (~10/month) and the database is actively being updated. The bundled database (4,618 cards) provides a great starting point, but syncing is recommended to get the latest cards and updates.
 
 ### UI/UX Improvements
 - ✨ **Scrollable Settings** - No more text cutoff for database info
@@ -69,7 +76,7 @@ Android app for managing your SRG Supershow wrestling card collection and buildi
 ## Integration with get-diced.com
 
 This app integrates with [get-diced.com](https://get-diced.com) to:
-- ✅ Sync comprehensive card database (~3,922 cards, growing monthly)
+- ✅ Sync comprehensive card database (~4,618 cards, growing monthly)
 - ✅ Access all 7 card types with full metadata
 - ✅ Search and filter with API-backed queries
 - ✅ Load high-quality card images (WebP format, bundled + on-demand)
@@ -209,7 +216,7 @@ CREATE TABLE folder_cards (
 
 ### 1. First Time Setup
    - Launch the app
-   - **3,922 cards + 3,481 images are pre-loaded and ready to use immediately!**
+   - **4,618 cards + 4,375 images are pre-loaded and ready to use immediately!**
    - Navigate to **Settings** tab (bottom right)
    - **Recommended:** Tap **Sync from get-diced.com** to get latest cards
    - New cards are released regularly (~10/month), so periodic syncing keeps your database current

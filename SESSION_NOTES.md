@@ -1,3 +1,550 @@
+# Session Notes - Dec 12, 2025 (Part 2)
+
+## ✅ COMPLETE SEARCH & FILTER REDESIGN - NEW ARCHITECTURE IMPLEMENTED
+
+### Summary
+Completely redesigned the search and filter system with a single-page architecture, multi-select filters, and live search. The old two-page flow with session ID tracking has been replaced with a clean, modern implementation.
+
+---
+
+## What Was Implemented ✅
+
+### 1. ViewModel Complete Redesign
+**File:** `CollectionViewModel.kt`
+
+**New Features:**
+- ✅ Multi-select search scopes (name, tags, rules_text) - Set<String>, all enabled by default
+- ✅ Multi-select deck card numbers - Set<Int> for filtering MainDeckCards
+- ✅ Six individual stat filters (minPower, minTechnique, minAgility, minStrike, minSubmission, minGrapple) - range 5-30, default 5
+- ✅ Live search with 300ms debounce - results update as you type
+- ✅ `applyFilters()` function - called when user clicks Apply in filter dialog
+- ✅ `clearFilters()` function - resets all filters to defaults and shows all cards
+- ✅ `loadNextPage()` - renamed from loadMoreResults for infinite scroll support
+
+**Removed:**
+- ❌ Session ID tracking (failed approach)
+- ❌ Autocomplete suggestions state (no longer needed)
+- ❌ Two-page flow navigation logic
+- ❌ Old SearchFilters and AutocompleteParams data classes
+
+### 2. Database Query Updates
+**Files:** `CardDao.kt`, `CollectionRepository.kt`
+
+**Enhanced Query:**
+```sql
+SELECT DISTINCT cards.* FROM cards
+WHERE (:searchQuery IS NULL OR (
+    (:searchName AND name LIKE '%' || :searchQuery || '%' COLLATE NOCASE) OR
+    (:searchTags AND tags LIKE '%' || :searchQuery || '%' COLLATE NOCASE) OR
+    (:searchRulesText AND rules_text LIKE '%' || :searchQuery || '%' COLLATE NOCASE)
+))
+AND (:cardType IS NULL OR card_type = :cardType)
+AND (:division IS NULL OR division = :division)
+AND (CASE WHEN :hasDeckNumbers THEN deck_card_number IN (:deckCardNumbers) ELSE 1 END)
+AND (power IS NULL OR power >= :minPower)
+AND (technique IS NULL OR technique >= :minTechnique)
+AND (agility IS NULL OR agility >= :minAgility)
+AND (strike IS NULL OR strike >= :minStrike)
+AND (submission IS NULL OR submission >= :minSubmission)
+AND (grapple IS NULL OR grapple >= :minGrapple)
+ORDER BY name ASC
+LIMIT :limit OFFSET :offset
+```
+
+**Features:**
+- Multi-select search scopes using OR query
+- Multi-select deck numbers using IN clause with hasDeckNumbers flag
+- Stats filtering for all 6 competitor stats
+- Supports showing all cards when no filters applied
+
+### 3. FilterDialog Component (NEW FILE)
+**File:** `FilterDialog.kt`
+
+**Features:**
+- ✅ Search scope toggles (Name, Tags, Card Text) - multi-select with FilterChips
+- ✅ Card type selector - single-select with "All" option
+- ✅ Deck card number grid (1-30) - multi-select, 6 rows × 5 columns layout
+- ✅ Six stat sliders for competitors - Power, Technique, Agility, Strike, Submission, Grapple (5-30 range)
+- ✅ Division filter for SingleCompetitorCards
+- ✅ Apply button - triggers `applyFilters()` and closes dialog
+- ✅ Clear All button - resets filters to defaults
+
+**UI/UX:**
+- Full-height dialog (90% screen height) with scrollable content
+- Shows selected deck numbers as comma-separated list
+- Shows current stat values next to each slider
+- Conditional visibility (deck numbers only for MainDeckCard, stats only for competitors)
+
+### 4. Single-Page AddCardToFolderScreen
+**File:** `AddCardToFolderScreen.kt` (completely rewritten)
+
+**New Architecture:**
+- ✅ Single screen - no separate results page
+- ✅ Filter icon in top app bar (funnel icon)
+- ✅ Search bar always visible at top
+- ✅ Infinite scroll using LaunchedEffect watching LazyListState
+- ✅ Empty states:
+  - "Search for cards" when no query entered
+  - "No cards found" when search returns nothing
+- ✅ Results count display ("50+ cards")
+- ✅ Loading indicator at bottom during pagination
+- ✅ Card click opens AddCardDialog with quantity selector
+
+**Removed:**
+- ❌ Two-page flow (search page → results page)
+- ❌ Session ID validation
+- ❌ Autocomplete dropdown
+- ❌ "Load More" button (replaced with infinite scroll)
+- ❌ Inline filter UI (moved to dialog)
+
+### 5. Single-Page CardSearchScreen (Viewer)
+**File:** `CardSearchScreen.kt` (completely rewritten)
+
+**Same architecture as AddCardToFolderScreen:**
+- ✅ Single page with filter icon
+- ✅ Infinite scroll
+- ✅ Card click opens CardDetailsDialog (placeholder - full implementation exists in old file)
+- ✅ Same empty states and search behavior
+
+### 6. Navigation Cleanup
+**File:** `Navigation.kt`
+
+**Changes:**
+- ❌ Removed `Screen.SearchResults` route
+- ❌ Removed `Screen.AddCardToFolderResults` route
+- ✅ Simplified AddCardToFolder composable (no onSearchClick callback)
+- ✅ Simplified CardSearch composable (no onSearchClick callback)
+
+---
+
+## How It Works Now
+
+### User Flow (Add Cards to Folder):
+1. User clicks "Add Cards" (+) in folder
+2. **Immediately sees:** Empty state "Search for cards"
+3. User types in search bar → results appear after 300ms
+4. User clicks filter icon → FilterDialog opens
+5. User selects filters (card type, deck numbers, stats, etc.)
+6. User clicks "Apply" → dialog closes, `applyFilters()` called
+7. Results update based on filters
+8. User scrolls down → automatically loads more cards (infinite scroll)
+9. User clicks card → AddCardDialog opens with +/- quantity buttons
+10. User clicks "Add" → card added to folder, stays on same results screen
+
+### Multi-Select Features:
+- **Search Scopes:** Can search in Name only, Tags only, Card Text only, or any combination
+- **Deck Numbers:** Can filter for multiple deck numbers (e.g., 5, 10, 15) at once
+- **Stats:** Set minimum values for each stat independently
+
+### Live Search:
+- Type "Lariat" → after 300ms pause, sees all cards matching "Lariat"
+- Change query to "Dragon" → after 300ms pause, sees all cards matching "Dragon"
+- Works across name, tags, and card text based on selected scopes
+
+---
+
+## Technical Details
+
+### Infinite Scroll Implementation:
+```kotlin
+LaunchedEffect(listState) {
+    snapshotFlow {
+        listState.layoutInfo.visibleItemsInfo.lastOrNull()?.index
+    }.collect { lastVisibleIndex ->
+        if (lastVisibleIndex != null &&
+            lastVisibleIndex >= searchResults.size - 5 &&
+            hasMoreResults &&
+            !isLoadingMore) {
+            viewModel.loadNextPage()
+        }
+    }
+}
+```
+
+### Live Search Debouncing:
+```kotlin
+init {
+    viewModelScope.launch {
+        _searchQuery
+            .debounce(300)
+            .collect {
+                _searchResults.value = emptyList()
+                _searchOffset.value = 0
+                performSearch()
+            }
+    }
+}
+```
+
+### Performance:
+- Pagination: 50 cards per page
+- Loads next page when scrolled to within 5 cards of bottom
+- Debounced search prevents excessive queries
+
+---
+
+## Files Modified/Created
+
+### Created:
+1. `FilterDialog.kt` - NEW dialog component for all filters
+
+### Completely Rewritten:
+1. `AddCardToFolderScreen.kt` - Single-page design with infinite scroll
+2. `CardSearchScreen.kt` - Single-page design with infinite scroll
+
+### Major Changes:
+1. `CollectionViewModel.kt` - New filter state, live search, multi-select support
+2. `CardDao.kt` - Enhanced query with multi-select and stats filtering
+3. `CollectionRepository.kt` - Updated to match new DAO signature
+4. `Navigation.kt` - Removed results routes
+
+### Backup Files (can be deleted):
+- `AddCardToFolderScreen_Old.kt` (removed)
+- `CardSearchScreen_Old.kt` (removed)
+
+---
+
+## Testing Instructions
+
+### Test 1: Live Search
+1. Open app → Collection → Any folder → "Add Cards"
+2. Type "Lariat" slowly
+3. **Expected:** Results appear 300ms after you stop typing
+
+### Test 2: Filter Dialog
+1. Click filter icon (funnel) in top bar
+2. Toggle search scopes (deselect "Name", keep "Tags" and "Card Text")
+3. Select card type "MainDeckCard"
+4. Select deck numbers 5, 10, 15
+5. Click "Apply"
+6. **Expected:** See only MainDeckCards with deck numbers 5, 10, or 15
+
+### Test 3: Stats Filtering
+1. Open filter dialog
+2. Select "SingleCompetitorCard"
+3. Drag Power slider to 20
+4. Click "Apply"
+5. **Expected:** See only SingleCompetitors with Power >= 20
+
+### Test 4: Infinite Scroll
+1. Search for "card" (should return many results)
+2. Scroll down to bottom
+3. **Expected:** Loading indicator appears, next 50 cards load automatically
+
+### Test 5: Add Multiple Cards from Same Search
+1. Search for deck number 6
+2. Click a card → add it with quantity 2
+3. **Expected:** Dialog closes, still shows deck #6 results
+4. Click another card → add it
+5. **Expected:** Still on same results (no navigation away)
+
+### Test 6: Clear Filters
+1. Apply various filters
+2. Click filter icon
+3. Click "Clear All"
+4. **Expected:** All filters reset, shows all cards
+
+---
+
+## Known Limitations
+
+### Temporary Compatibility Stubs (can be removed later):
+- `selectedAtkType`, `selectedPlayOrder`, `selectedDeckCardNumber` - unused stub properties
+- `searchScope`, `autocompleteSuggestions`, `searchSessionId` - unused stub properties
+- `setSearchScope()`, `setAtkTypeFilter()`, etc. - unused stub functions
+- `triggerSearch()` - redirects to `applyFilters()`
+- `loadMoreResults()` - redirects to `loadNextPage()`
+
+These exist only for compatibility and can be safely removed in cleanup.
+
+### CardDetailsDialog:
+- Currently uses a placeholder implementation
+- Full implementation exists in old backup file but wasn't migrated
+- Shows basic card info but missing:
+  - Full image preview
+  - Related cards/finishes
+  - Stats display with colored badges
+  - Errata and tags
+
+---
+
+## Benefits of New Architecture
+
+1. **Simpler:** One page instead of two, no navigation state management
+2. **Clearer UX:** Filter icon is discoverable, Apply button gives control
+3. **Faster:** Live search as you type, infinite scroll
+4. **More Powerful:** Multi-select for deck numbers and scopes, comprehensive stats filtering
+5. **No Stale Results:** Single page means no navigation bugs
+6. **Better Performance:** Debounced search, lazy loading with pagination
+7. **Cleaner Code:** Removed 1000+ lines of two-page flow complexity
+
+---
+
+## Foundation Architecture Changes (Build Successful ✅)
+
+### Changes Completed:
+
+**Phase 1: ViewModel Updates**
+- ✅ Added multi-select search scopes (name, tags, rules_text) - Set<String>
+- ✅ Added multi-select deck card numbers - Set<Int>
+- ✅ Added 6 stat filters (minPower, minTechnique, minAgility, minStrike, minSubmission, minGrapple) - default 5
+- ✅ Removed session ID tracking (failed approach)
+- ✅ Removed autocomplete state
+- ✅ Added auto-load on init - loads first 50 cards automatically
+- ✅ Added live search with 300ms debounce - searches as you type
+- ✅ Renamed `loadMoreResults()` to `loadNextPage()`
+- ✅ Added `applyFilters()` and `clearFilters()` functions
+- ✅ Temporary compatibility stubs for old UI
+
+**Phase 2: Database Updates**
+- ✅ Updated CardDao.searchCardsWithFilters() query:
+  - Multi-select search scopes (OR query across name/tags/rules_text)
+  - Multi-select deck card numbers (IN clause with hasDeckNumbers flag)
+  - Stats filtering (power >= minPower, etc.)
+- ✅ Updated CollectionRepository to match new DAO signature
+
+**Phase 3: Compilation**
+- ✅ Added temporary stub functions for backwards compatibility
+- ✅ Build successful
+
+### What to Test:
+
+#### Test 1: Auto-Load on Startup
+1. Open app → Collection → Click any folder → Click "Add Cards" (+ FAB)
+2. **Expected:** Should immediately see 50 cards loaded (first 50 alphabetically)
+3. **What this tests:** Auto-load on init is working
+
+#### Test 2: Live Search (300ms debounce)
+1. In the search bar, type "Lariat" slowly
+2. **Expected:** Results should filter after you stop typing for 300ms
+3. **Current Behavior:** Will still use old two-page flow (search → click Search button → results page)
+4. **What this tests:** Live search debouncing works
+
+#### Test 3: Infinite Scroll (via Load More button temporarily)
+1. Search for "MainDeckCard" → click Search → see results
+2. Scroll to bottom → click "Load More"
+3. **Expected:** Next 50 cards load and append to list
+4. **What this tests:** Pagination with new `loadNextPage()` function works
+
+#### Test 4: Filter Application
+1. Select a card type filter → click Search
+2. **Expected:** Results filtered by that card type
+3. **What this tests:** New database query supports filters
+
+### Known Limitations (Temporary):
+
+- Still using OLD two-page UI flow (search → results)
+- Still has session ID validation (shows "stale results" message)
+- Still has autocomplete dropdown (non-functional)
+- Search scope is still single-select dropdown (not multi-select toggles)
+- No stats filtering UI yet
+- No deck number multi-select UI yet
+
+### Next Steps (If Foundation Works):
+
+1. Create FilterDialog component with:
+   - Multi-select search scopes (Name, Tags, Card Text)
+   - Multi-select deck card numbers (1-30 grid)
+   - Stat sliders (6 stats, 5-30 range)
+   - Apply and Clear buttons
+
+2. Refactor AddCardToFolderScreen to single page:
+   - Merge search + results into one screen
+   - Filter icon in top bar opens dialog
+   - Infinite scroll (no Load More button)
+   - Remove session ID checks
+
+3. Apply same pattern to CardSearchScreen (Viewer)
+
+4. Clean up Navigation (remove results routes)
+
+5. Remove compatibility stubs from ViewModel
+
+---
+
+# Session Notes - Dec 12, 2025 (Part 1)
+
+## ✅ FIXED: Stale Search Results Issue (RESOLVED - Dec 12, 2025)
+
+### Problem Summary
+**User's Use Case:**
+- Search for individual cards and add them to collection
+- Then search for a block of cards (e.g., all cards matching card number 5)
+- Add multiple cards from those filtered results
+- **BUG**: After adding a card, either see old search results or empty results instead of current search results
+
+**Root Cause:**
+The ViewModel is shared across navigation screens, and search results were persisting in the StateFlow without proper isolation between search sessions. When navigating between search → results → add card → back to results, there was no way to distinguish between different search sessions.
+
+### Solution: Search Session ID System ✅
+
+**Implementation:**
+
+1. **Added Search Session Tracking** (`CollectionViewModel.kt`)
+   - Added `_searchSessionId` MutableStateFlow (starts at 0)
+   - Increments by 1 every time `triggerSearch()` is called
+   - Provides `searchSessionId` StateFlow for UI to observe
+
+2. **Updated triggerSearch()** (`CollectionViewModel.kt:212-225`)
+   ```kotlin
+   fun triggerSearch() {
+       // Increment session ID to mark this as a new search
+       _searchSessionId.value += 1
+
+       // Clear results synchronously BEFORE launching coroutine to avoid race conditions
+       _searchResults.value = emptyList()
+       _searchOffset.value = 0
+       _hasMoreResults.value = true
+       _isLoadingMore.value = false
+
+       viewModelScope.launch {
+           performSearch()
+       }
+   }
+   ```
+
+3. **Updated Results Screens** (Both `AddCardToFolderResultsScreen` and `SearchResultsScreen`)
+   - Capture `resultsSessionId` using `remember(currentSessionId)` when screen first displays
+   - Compare `resultsSessionId` with `currentSessionId` before showing results
+   - If IDs don't match → show "Results outdated - Please go back and search again"
+   - If IDs match → show results normally
+   - This ensures results screen only displays data from ITS search, not from other searches
+
+**How It Works:**
+1. User searches for "card A" → session ID becomes 1 → results screen captures session ID 1
+2. User goes back, searches for "card number 5" → session ID becomes 2
+3. Results screen now has session ID 2 captured
+4. User adds a card → stays on results screen with session ID 2
+5. Results continue to show because resultsSessionId (2) == currentSessionId (2)
+6. If somehow an old results screen with session ID 1 were still visible, it would show "Results outdated"
+
+**Benefits:**
+- ✅ Results stay consistent when adding multiple cards from the same search
+- ✅ Prevents stale results from appearing after new searches
+- ✅ Clear user feedback when results are outdated
+- ✅ No complex filter comparison logic needed
+- ✅ Works with pagination (Load More) correctly
+
+### Previous Failed Attempts (For Reference)
+1. ❌ Added `LaunchedEffect(Unit)` to clear results on navigation → cleared results when adding cards
+2. ❌ Added `LaunchedEffect(folderId)` → still cleared results when adding cards
+3. ❌ Used `rememberSaveable` with hasCleared flag → wouldn't re-clear on subsequent visits
+4. ❌ Removed all auto-clearing → original bug returned (stale results)
+5. ❌ Made `triggerSearch()` clear synchronously before coroutine → still showing stale results
+
+### Files Modified (This Fix)
+- `app/src/main/kotlin/com/srg/inventory/ui/CollectionViewModel.kt` - Added search session ID tracking
+- `app/src/main/kotlin/com/srg/inventory/ui/AddCardToFolderScreen.kt` - Session validation in results screen
+- `app/src/main/kotlin/com/srg/inventory/ui/CardSearchScreen.kt` - Session validation in results screen
+
+---
+
+## What Was Completed This Session ✅
+
+### Search & UX Enhancements (COMPLETED)
+
+**Goal:** Add pagination, autocomplete, image previews, and fix CSV import/export compatibility
+
+**Features Implemented:**
+
+1. **Search Pagination** (`CollectionViewModel.kt`, `CardDao.kt`, `CollectionRepository.kt`)
+   - Added `offset` parameter to database queries (LIMIT/OFFSET)
+   - State management: `_searchOffset`, `_hasMoreResults`, `_isLoadingMore`
+   - "Load More" button in search results (shows next 50 cards)
+   - Applied to both CardSearchScreen and AddCardToFolderScreen
+   - **Critical Bug Fix**: Fixed auto-search issue where all cards were returned
+     - Removed reactive search from init block
+     - Added manual `triggerSearch()` method
+     - Search only executes when user clicks Search button
+   - Files: `CardDao.kt:67`, `CollectionRepository.kt:96-97`, `CollectionViewModel.kt:130-212`
+
+2. **Name Autocomplete** (`CollectionViewModel.kt`, `CardDao.kt`)
+   - Smart card name suggestions filtered by current search criteria
+   - 300ms debounce using Flow operators
+   - Dropdown shows up to 10 matching card names
+   - Filters applied: card type, division, attack type, deck card number
+   - Database query with DISTINCT and prefix matching (LIKE)
+   - Integrated into SearchBar composable with dropdown UI
+   - Files: `CardDao.kt:84-104`, `CollectionRepository.kt:102-112`, `CollectionViewModel.kt:140-212`
+
+3. **Image Previews in Card Selection** (`AddCardToFolderScreen.kt`, `DeckEditorScreen.kt`)
+   - Added 64dp card thumbnails to search results
+   - Uses AsyncImage with ImageUtils.buildCardImageRequest
+   - Applied to:
+     - AddCardToFolderScreen (folder card selection)
+     - DeckEditorScreen card picker dialog
+   - Row layout with image on left, card details on right
+   - Files: `AddCardToFolderScreen.kt:442-470`, `DeckEditorScreen.kt:999-1034`
+
+4. **Clear Folder Feature** (`FolderDetailScreen.kt`, `CollectionViewModel.kt`)
+   - DeleteSweep icon button in folder top bar
+   - Confirmation dialog with warning message
+   - Empties folder without deleting it
+   - Repository already had `removeAllCardsFromFolder()` method
+   - Files: `FolderDetailScreen.kt:147-152,226-269`, `CollectionViewModel.kt:408-416`
+
+5. **CSV Import/Export Compatibility Fix** (CRITICAL)
+   - **Problem**: Semicolon/comma and quote escaping incompatibilities
+   - **Solution**: Universal CSV scheme using:
+     - Commas → `--` replacement (no card names have `--`)
+     - Double quotes → `""` (CSV standard escaping)
+     - All values wrapped in quotes
+   - **CSV Parser Enhancement**:
+     - Proper handling of escaped quotes (`""` → `"`)
+     - Lookahead for double-quote detection
+     - Preserves apostrophes in card names
+   - **Import Logging**:
+     - Failed imports logged to `import_not_found.log`
+     - Timestamp, count, and all failed card names
+     - Saved to external files directory
+   - **Website Sync**:
+     - Updated TableView.jsx and DeckGridFromNames.jsx
+     - Website now uses same CSV scheme as Android app
+     - Full round-trip compatibility
+   - Files:
+     - Android: `FolderDetailScreen.kt:1019,1108,1174-1206`, `DeckEditorScreen.kt:1081,1141`
+     - Website: `frontend/src/pages/TableView.jsx:259-265`, `frontend/src/components/DeckGridFromNames.jsx:269-275`
+
+6. **Database & Image Sync** (Dec 12)
+   - Updated bundled database from 3,922 to **4,618 cards** (+696 new cards)
+   - Updated bundled images from 3,912 to **4,375 images** (+463 new images)
+   - Regenerated with `create_mobile_db.py` from latest cards.yaml
+   - Updated `images_manifest.json` (generated 2025-12-12)
+   - Clean install required to force database reload
+
+**Files Modified:**
+- `app/src/main/kotlin/com/srg/inventory/data/CardDao.kt` - Pagination, autocomplete
+- `app/src/main/kotlin/com/srg/inventory/data/CollectionRepository.kt` - Pass-through for new features
+- `app/src/main/kotlin/com/srg/inventory/ui/CollectionViewModel.kt` - Search state, pagination, autocomplete, clear folder
+- `app/src/main/kotlin/com/srg/inventory/ui/CardSearchScreen.kt` - Pagination UI, autocomplete, manual search trigger
+- `app/src/main/kotlin/com/srg/inventory/ui/AddCardToFolderScreen.kt` - Pagination UI, autocomplete, image previews, manual search trigger
+- `app/src/main/kotlin/com/srg/inventory/ui/FolderDetailScreen.kt` - Clear folder button, CSV fixes, import logging, CSV parser
+- `app/src/main/kotlin/com/srg/inventory/ui/DeckEditorScreen.kt` - Image previews, CSV fixes, import logging
+- `/home/brandon/data/srg_card_search_website/frontend/src/pages/TableView.jsx` - CSV export compatibility
+- `/home/brandon/data/srg_card_search_website/frontend/src/components/DeckGridFromNames.jsx` - CSV export compatibility
+- `app/src/main/assets/cards_initial.db` - Updated to 4,618 cards
+- `app/src/main/assets/images_manifest.json` - Updated to 4,375 images
+
+**User Experience:**
+- ✅ Browse beyond first 50 search results with Load More
+- ✅ Fast card name entry with autocomplete dropdown
+- ✅ Visual card identification with image thumbnails
+- ✅ Clear folder contents with safety confirmation
+- ✅ Universal CSV format works across Android app and website
+- ✅ Import troubleshooting with detailed logs
+- ✅ Search works correctly (manual trigger, not auto-executing)
+- ✅ 4,618 cards available offline with 4,375 images
+
+**Version Update:**
+- **Version**: 1.0.13 (versionCode 16)
+- **Previous**: 1.0.12 (versionCode 15)
+
+**Release Build:**
+- **AAB Location**: `app/build/outputs/bundle/release/app-release.aab`
+- **Status**: ❌ **NOT READY** - Critical bugs in search results (see top of file)
+
+---
+
 # Session Notes - Dec 10, 2025
 
 ## What Was Completed This Session ✅

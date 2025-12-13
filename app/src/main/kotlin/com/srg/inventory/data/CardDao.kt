@@ -42,43 +42,68 @@ interface CardDao {
     @Query("SELECT DISTINCT division FROM cards WHERE division IS NOT NULL ORDER BY division ASC")
     suspend fun getAllDivisions(): List<String>
 
-    // Search with filters and field scope
+    // Search with filters - multi-select support for scopes and deck numbers
     @Query("""
         SELECT DISTINCT cards.* FROM cards
-        LEFT JOIN folder_cards ON cards.db_uuid = folder_cards.card_uuid
-        WHERE (:searchQuery IS NULL OR
-               CASE :searchScope
-                   WHEN 'name' THEN name LIKE '%' || :searchQuery || '%' COLLATE NOCASE
-                   WHEN 'rules' THEN rules_text LIKE '%' || :searchQuery || '%' COLLATE NOCASE
-                   WHEN 'tags' THEN tags LIKE '%' || :searchQuery || '%' COLLATE NOCASE
-                   ELSE (name LIKE '%' || :searchQuery || '%' COLLATE NOCASE
-                         OR rules_text LIKE '%' || :searchQuery || '%' COLLATE NOCASE
-                         OR tags LIKE '%' || :searchQuery || '%' COLLATE NOCASE)
-               END)
+        WHERE (
+            :searchQuery IS NULL OR (
+                (:searchName AND name LIKE '%' || :searchQuery || '%' COLLATE NOCASE) OR
+                (:searchTags AND tags LIKE '%' || :searchQuery || '%' COLLATE NOCASE) OR
+                (:searchRulesText AND rules_text LIKE '%' || :searchQuery || '%' COLLATE NOCASE)
+            )
+        )
+        AND (:cardType IS NULL OR card_type = :cardType)
+        AND (:division IS NULL OR division = :division)
+        AND (CASE WHEN :hasDeckNumbers THEN deck_card_number IN (:deckCardNumbers) ELSE 1 END)
+        AND (power IS NULL OR power >= :minPower)
+        AND (technique IS NULL OR technique >= :minTechnique)
+        AND (agility IS NULL OR agility >= :minAgility)
+        AND (strike IS NULL OR strike >= :minStrike)
+        AND (submission IS NULL OR submission >= :minSubmission)
+        AND (grapple IS NULL OR grapple >= :minGrapple)
+        ORDER BY name ASC
+        LIMIT :limit OFFSET :offset
+    """)
+    fun searchCardsWithFilters(
+        searchQuery: String?,
+        searchName: Boolean,
+        searchTags: Boolean,
+        searchRulesText: Boolean,
+        cardType: String?,
+        division: String?,
+        deckCardNumbers: List<Int>,
+        hasDeckNumbers: Boolean,
+        minPower: Int,
+        minTechnique: Int,
+        minAgility: Int,
+        minStrike: Int,
+        minSubmission: Int,
+        minGrapple: Int,
+        limit: Int,
+        offset: Int
+    ): Flow<List<Card>>
+
+    // Get card name suggestions for autocomplete
+    @Query("""
+        SELECT DISTINCT name FROM cards
+        WHERE (:prefix = '' OR name LIKE :prefix || '%' COLLATE NOCASE)
         AND (:cardType IS NULL OR card_type = :cardType)
         AND (:atkType IS NULL OR atk_type = :atkType)
         AND (:playOrder IS NULL OR play_order = :playOrder)
         AND (:division IS NULL OR division = :division)
         AND (:deckCardNumber IS NULL OR deck_card_number = :deckCardNumber)
-        AND (:releaseSet IS NULL OR release_set = :releaseSet)
-        AND (:isBanned IS NULL OR is_banned = :isBanned)
-        AND (:inCollectionFolderId IS NULL OR folder_cards.folder_id = :inCollectionFolderId)
         ORDER BY name ASC
         LIMIT :limit
     """)
-    fun searchCardsWithFilters(
-        searchQuery: String?,
-        searchScope: String = "all",
+    suspend fun getCardNameSuggestions(
+        prefix: String,
         cardType: String?,
         atkType: String?,
         playOrder: String?,
         division: String?,
-        deckCardNumber: Int? = null,
-        releaseSet: String?,
-        isBanned: Boolean?,
-        inCollectionFolderId: String? = null,
-        limit: Int = 100
-    ): Flow<List<Card>>
+        deckCardNumber: Int?,
+        limit: Int = 20
+    ): List<String>
 
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertCard(card: Card)

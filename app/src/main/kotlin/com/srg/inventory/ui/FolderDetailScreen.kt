@@ -42,10 +42,68 @@ fun FolderDetailScreen(
     onAddCardClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
-    val cardsWithQuantities by viewModel.cardsInCurrentFolder.collectAsState()
+    val allCardsInFolder by viewModel.cardsInCurrentFolder.collectAsState()
     val foldersWithCounts by viewModel.foldersWithCounts.collectAsState()
     val isSharing by viewModel.isSharing.collectAsState()
     val shareUrl by viewModel.shareUrl.collectAsState()
+
+    // Filter state for folder view
+    val selectedCardType by viewModel.selectedCardType.collectAsState()
+    val selectedDeckCardNumbers by viewModel.selectedDeckCardNumbers.collectAsState()
+    val selectedDivision by viewModel.selectedDivision.collectAsState()
+    val minPower by viewModel.minPower.collectAsState()
+    val minTechnique by viewModel.minTechnique.collectAsState()
+    val minAgility by viewModel.minAgility.collectAsState()
+    val minStrike by viewModel.minStrike.collectAsState()
+    val minSubmission by viewModel.minSubmission.collectAsState()
+    val minGrapple by viewModel.minGrapple.collectAsState()
+
+    // Apply filters to cards in folder
+    val cardsWithQuantities = remember(
+        allCardsInFolder,
+        selectedCardType,
+        selectedDeckCardNumbers,
+        selectedDivision,
+        minPower,
+        minTechnique,
+        minAgility,
+        minStrike,
+        minSubmission,
+        minGrapple
+    ) {
+        allCardsInFolder.filter { cardWithQty ->
+            val card = cardWithQty.card
+
+            // Card type filter
+            if (selectedCardType != null && card.cardType != selectedCardType) {
+                return@filter false
+            }
+
+            // Deck card number filter (multi-select)
+            if (selectedDeckCardNumbers.isNotEmpty() && card.deckCardNumber != null) {
+                if (!selectedDeckCardNumbers.contains(card.deckCardNumber)) {
+                    return@filter false
+                }
+            }
+
+            // Division filter
+            if (selectedDivision != null && card.division != selectedDivision) {
+                return@filter false
+            }
+
+            // Stats filters (only apply to competitors)
+            if (card.isCompetitor) {
+                if (card.power != null && card.power < minPower) return@filter false
+                if (card.technique != null && card.technique < minTechnique) return@filter false
+                if (card.agility != null && card.agility < minAgility) return@filter false
+                if (card.strike != null && card.strike < minStrike) return@filter false
+                if (card.submission != null && card.submission < minSubmission) return@filter false
+                if (card.grapple != null && card.grapple < minGrapple) return@filter false
+            }
+
+            true
+        }
+    }
 
     val currentFolder = remember(foldersWithCounts, folderId) {
         foldersWithCounts.find { it.folder.id == folderId }?.folder
@@ -53,7 +111,8 @@ fun FolderDetailScreen(
 
     var cardToView by remember { mutableStateOf<CardWithQuantity?>(null) }
     var cardToEditQuantity by remember { mutableStateOf<CardWithQuantity?>(null) }
-    var showSearchDialog by remember { mutableStateOf(false) }
+    var showFilterDialog by remember { mutableStateOf(false) }
+    var showClearFolderDialog by remember { mutableStateOf(false) }
 
     LaunchedEffect(folderId) {
         viewModel.setCurrentFolder(folderId)
@@ -102,9 +161,9 @@ fun FolderDetailScreen(
                     }
                 },
                 actions = {
-                    // Search within folder
-                    IconButton(onClick = { showSearchDialog = true }) {
-                        Icon(Icons.Default.Search, contentDescription = "Search in folder")
+                    // Filter cards in folder
+                    IconButton(onClick = { showFilterDialog = true }) {
+                        Icon(Icons.Default.FilterList, contentDescription = "Filter cards")
                     }
                     // Import from CSV (download from file)
                     IconButton(onClick = { csvImportLauncher.launch("text/csv") }) {
@@ -141,6 +200,12 @@ fun FolderDetailScreen(
                             } else {
                                 Icon(Icons.Default.QrCode2, contentDescription = "Share as QR Code")
                             }
+                        }
+                    }
+                    // Clear Folder
+                    if (cardsWithQuantities.isNotEmpty()) {
+                        IconButton(onClick = { showClearFolderDialog = true }) {
+                            Icon(Icons.Default.DeleteSweep, contentDescription = "Clear folder")
                         }
                     }
                 }
@@ -204,14 +269,56 @@ fun FolderDetailScreen(
         )
     }
 
-    // Search dialog
-    if (showSearchDialog) {
-        SearchInFolderDialog(
-            cards = cardsWithQuantities,
-            onDismiss = { showSearchDialog = false },
-            onCardClick = { card ->
-                cardToView = card
-                showSearchDialog = false
+    // Filter dialog
+    if (showFilterDialog) {
+        FilterDialog(
+            viewModel = viewModel,
+            onDismiss = { showFilterDialog = false },
+            onApply = { showFilterDialog = false }
+        )
+    }
+
+    // Clear folder confirmation dialog
+    if (showClearFolderDialog) {
+        AlertDialog(
+            onDismissRequest = { showClearFolderDialog = false },
+            icon = {
+                Icon(Icons.Default.Warning, contentDescription = null)
+            },
+            title = {
+                Text("Clear Folder?")
+            },
+            text = {
+                Column {
+                    Text("Are you sure you want to clear all cards from this folder?")
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Text(
+                        "This will remove ${cardsWithQuantities.size} card${if (cardsWithQuantities.size != 1) "s" else ""} from the folder.",
+                        style = MaterialTheme.typography.bodyMedium,
+                        fontWeight = FontWeight.Bold
+                    )
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Text(
+                        "Make sure to export it first if you want to keep a backup!",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.error
+                    )
+                }
+            },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        viewModel.clearFolder(folderId)
+                        showClearFolderDialog = false
+                    }
+                ) {
+                    Text("Clear Folder")
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showClearFolderDialog = false }) {
+                    Text("Cancel")
+                }
             }
         )
     }
@@ -224,135 +331,6 @@ fun FolderDetailScreen(
             onDismiss = { viewModel.clearShareUrl() }
         )
     }
-}
-
-@OptIn(ExperimentalMaterial3Api::class)
-@Composable
-fun SearchInFolderDialog(
-    cards: List<CardWithQuantity>,
-    onDismiss: () -> Unit,
-    onCardClick: (CardWithQuantity) -> Unit
-) {
-    var searchQuery by remember { mutableStateOf("") }
-
-    val filteredCards = remember(cards, searchQuery) {
-        if (searchQuery.isBlank()) {
-            cards
-        } else {
-            cards.filter { cardWithQty ->
-                val card = cardWithQty.card
-                card.name.contains(searchQuery, ignoreCase = true) ||
-                card.rulesText?.contains(searchQuery, ignoreCase = true) == true ||
-                card.tags?.contains(searchQuery, ignoreCase = true) == true
-            }
-        }
-    }
-
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        modifier = Modifier.fillMaxWidth(0.95f),
-        title = { Text("Search in Folder") },
-        text = {
-            Column(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .heightIn(min = 400.dp, max = 600.dp)
-            ) {
-                OutlinedTextField(
-                    value = searchQuery,
-                    onValueChange = { searchQuery = it },
-                    label = { Text("Search") },
-                    placeholder = { Text("Card name, rules, or tags...") },
-                    leadingIcon = {
-                        Icon(Icons.Default.Search, contentDescription = null)
-                    },
-                    trailingIcon = {
-                        if (searchQuery.isNotEmpty()) {
-                            IconButton(onClick = { searchQuery = "" }) {
-                                Icon(Icons.Default.Clear, contentDescription = "Clear")
-                            }
-                        }
-                    },
-                    singleLine = true,
-                    modifier = Modifier.fillMaxWidth()
-                )
-
-                Spacer(modifier = Modifier.height(8.dp))
-
-                Text(
-                    text = "${filteredCards.size} card${if (filteredCards.size != 1) "s" else ""}",
-                    style = MaterialTheme.typography.labelMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-
-                Spacer(modifier = Modifier.height(8.dp))
-
-                if (filteredCards.isEmpty()) {
-                    Box(
-                        modifier = Modifier.fillMaxSize(),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Text(
-                            text = "No cards found",
-                            style = MaterialTheme.typography.bodyMedium,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-                    }
-                } else {
-                    LazyColumn(
-                        modifier = Modifier.fillMaxSize(),
-                        verticalArrangement = Arrangement.spacedBy(4.dp)
-                    ) {
-                        items(filteredCards, key = { it.card.dbUuid }) { cardWithQty ->
-                            Card(
-                                onClick = { onCardClick(cardWithQty) },
-                                modifier = Modifier.fillMaxWidth()
-                            ) {
-                                Row(
-                                    modifier = Modifier
-                                        .fillMaxWidth()
-                                        .padding(12.dp),
-                                    verticalAlignment = Alignment.CenterVertically
-                                ) {
-                                    Column(modifier = Modifier.weight(1f)) {
-                                        Text(
-                                            text = cardWithQty.card.name,
-                                            style = MaterialTheme.typography.bodyMedium,
-                                            fontWeight = FontWeight.Medium,
-                                            maxLines = 1,
-                                            overflow = TextOverflow.Ellipsis
-                                        )
-                                        Text(
-                                            text = cardWithQty.card.cardType.replace("Card", ""),
-                                            style = MaterialTheme.typography.bodySmall,
-                                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                                        )
-                                    }
-                                    if (cardWithQty.quantity > 1) {
-                                        Surface(
-                                            color = MaterialTheme.colorScheme.primaryContainer,
-                                            shape = MaterialTheme.shapes.small
-                                        ) {
-                                            Text(
-                                                text = "×${cardWithQty.quantity}",
-                                                style = MaterialTheme.typography.labelMedium,
-                                                modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
-                                            )
-                                        }
-                                    }
-                                }
-                            }
-                        }
-                    }
-                }
-            }
-        },
-        confirmButton = {
-            TextButton(onClick = onDismiss) {
-                Text("Close")
-            }
-        }
-    )
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -964,7 +942,7 @@ private fun exportFolderToCsv(
 
         for (cardWithQty in cards) {
             val card = cardWithQty.card
-            val name = card.name.replace(",", ";").replace("\"", "'")
+            val name = card.name.replace(",", "--").replace("\"", "\"\"")  // CSV standard: double-up quotes
             val quantity = cardWithQty.quantity
             val cardType = card.cardType.replace("Card", "")
             val deckNum = card.deckCardNumber?.toString() ?: ""
@@ -1053,7 +1031,7 @@ private suspend fun importCsvToFolder(
             val parts = parseCsvLineParts(line)
             if (parts.isEmpty()) continue
 
-            val cardName = parts.getOrNull(nameColumnIndex)?.trim('"', ' ') ?: continue
+            val cardName = parts.getOrNull(nameColumnIndex)?.trim()?.replace("--", ",") ?: continue
             if (cardName.isBlank()) continue
 
             val quantity = if (quantityColumnIndex >= 0) {
@@ -1068,9 +1046,27 @@ private suspend fun importCsvToFolder(
                 imported++
             } else {
                 notFound++
-                if (notFoundNames.size < 5) {
-                    notFoundNames.add(cardName)
+                notFoundNames.add(cardName)  // Store all not-found names for logging
+            }
+        }
+
+        // Write not-found cards to log file
+        var logFilePath: String? = null
+        if (notFoundNames.isNotEmpty()) {
+            try {
+                val logFile = File(context.getExternalFilesDir(null), "import_not_found.log")
+                logFile.bufferedWriter().use { writer ->
+                    writer.write("Import Failed Cards Log\n")
+                    writer.write("Generated: ${java.text.SimpleDateFormat("yyyy-MM-dd HH:mm:ss", java.util.Locale.US).format(java.util.Date())}\n")
+                    writer.write("Total not found: ${notFoundNames.size}\n")
+                    writer.write("---\n\n")
+                    notFoundNames.forEach { name ->
+                        writer.write("$name\n")
+                    }
                 }
+                logFilePath = logFile.absolutePath
+            } catch (e: Exception) {
+                // If log writing fails, just continue
             }
         }
 
@@ -1078,9 +1074,12 @@ private suspend fun importCsvToFolder(
             append("Imported $imported card${if (imported != 1) "s" else ""}")
             if (notFound > 0) {
                 append(", $notFound not found")
-                if (notFoundNames.isNotEmpty()) {
-                    append(": ${notFoundNames.joinToString(", ")}")
-                    if (notFound > notFoundNames.size) {
+                if (logFilePath != null) {
+                    append("\nLog saved to: $logFilePath")
+                } else if (notFoundNames.isNotEmpty()) {
+                    val preview = notFoundNames.take(5)
+                    append(": ${preview.joinToString(", ")}")
+                    if (notFound > preview.size) {
                         append("...")
                     }
                 }
@@ -1102,16 +1101,30 @@ private fun parseCsvLineParts(line: String): List<String> {
     val parts = mutableListOf<String>()
     var current = StringBuilder()
     var inQuotes = false
+    var i = 0
 
-    for (char in line) {
+    while (i < line.length) {
+        val char = line[i]
         when {
-            char == '"' -> inQuotes = !inQuotes
+            char == '"' && inQuotes && i + 1 < line.length && line[i + 1] == '"' -> {
+                // Escaped quote: "" becomes "
+                current.append('"')
+                i++ // Skip the next quote
+            }
+            char == '"' -> {
+                // Toggle quote mode (but don't add the quote to output)
+                inQuotes = !inQuotes
+            }
             char == ',' && !inQuotes -> {
+                // Field separator
                 parts.add(current.toString().trim())
                 current = StringBuilder()
             }
-            else -> current.append(char)
+            else -> {
+                current.append(char)
+            }
         }
+        i++
     }
     parts.add(current.toString().trim())
 
