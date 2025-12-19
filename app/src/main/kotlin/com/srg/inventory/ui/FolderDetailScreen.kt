@@ -1,25 +1,35 @@
 package com.srg.inventory.ui
 
 import android.content.Intent
+import android.content.res.Configuration
 import android.net.Uri
 import android.widget.Toast
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.gestures.rememberTransformableState
+import androidx.compose.foundation.gestures.transformable
 import androidx.compose.foundation.layout.*
+import androidx.compose.ui.draw.clip
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyListScope
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.window.DialogProperties
 import androidx.core.content.FileProvider
 import coil.compose.AsyncImage
 import com.srg.inventory.data.Card
@@ -109,10 +119,20 @@ fun FolderDetailScreen(
         foldersWithCounts.find { it.folder.id == folderId }?.folder
     }
 
-    var cardToView by remember { mutableStateOf<CardWithQuantity?>(null) }
-    var cardToEditQuantity by remember { mutableStateOf<CardWithQuantity?>(null) }
-    var showFilterDialog by remember { mutableStateOf(false) }
-    var showClearFolderDialog by remember { mutableStateOf(false) }
+    // Use rememberSaveable to persist across configuration changes
+    var cardToViewUuid by rememberSaveable { mutableStateOf<String?>(null) }
+    var cardToEditQuantityUuid by rememberSaveable { mutableStateOf<String?>(null) }
+
+    // Derive the actual card objects from UUIDs
+    val cardToView = remember(cardToViewUuid, cardsWithQuantities) {
+        cardToViewUuid?.let { uuid -> cardsWithQuantities.find { it.card.dbUuid == uuid } }
+    }
+    val cardToEditQuantity = remember(cardToEditQuantityUuid, cardsWithQuantities) {
+        cardToEditQuantityUuid?.let { uuid -> cardsWithQuantities.find { it.card.dbUuid == uuid } }
+    }
+
+    var showFilterDialog by rememberSaveable { mutableStateOf(false) }
+    var showClearFolderDialog by rememberSaveable { mutableStateOf(false) }
 
     LaunchedEffect(folderId) {
         viewModel.setCurrentFolder(folderId)
@@ -145,22 +165,36 @@ fun FolderDetailScreen(
 
     Scaffold(
         topBar = {
-            TopAppBar(
-                title = {
-                    Column {
-                        Text(currentFolder?.name ?: "Folder")
-                        Text(
-                            text = "${cardsWithQuantities.size} card${if (cardsWithQuantities.size != 1) "s" else ""}",
-                            style = MaterialTheme.typography.bodySmall
-                        )
-                    }
-                },
-                navigationIcon = {
-                    IconButton(onClick = onBackClick) {
-                        Icon(Icons.Default.ArrowBack, contentDescription = "Back")
-                    }
-                },
-                actions = {
+            Column {
+                TopAppBar(
+                    title = {
+                        Column {
+                            Text(
+                                text = currentFolder?.name ?: "Folder",
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis
+                            )
+                            Text(
+                                text = "${cardsWithQuantities.size} card${if (cardsWithQuantities.size != 1) "s" else ""}",
+                                style = MaterialTheme.typography.bodySmall
+                            )
+                        }
+                    },
+                    navigationIcon = {
+                        IconButton(onClick = onBackClick) {
+                            Icon(Icons.Default.ArrowBack, contentDescription = "Back")
+                        }
+                    },
+                    actions = {}
+                )
+                // Action icons row below the title
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 8.dp, vertical = 4.dp),
+                    horizontalArrangement = Arrangement.End,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
                     // Filter cards in folder
                     IconButton(onClick = { showFilterDialog = true }) {
                         Icon(Icons.Default.FilterList, contentDescription = "Filter cards")
@@ -209,7 +243,7 @@ fun FolderDetailScreen(
                         }
                     }
                 }
-            )
+            }
         },
         floatingActionButton = {
             FloatingActionButton(onClick = onAddCardClick) {
@@ -235,8 +269,8 @@ fun FolderDetailScreen(
                 items(cardsWithQuantities, key = { it.card.dbUuid }) { cardWithQuantity ->
                     CardInFolderItem(
                         cardWithQuantity = cardWithQuantity,
-                        onClick = { cardToView = cardWithQuantity },
-                        onEditQuantityClick = { cardToEditQuantity = cardWithQuantity }
+                        onClick = { cardToViewUuid = cardWithQuantity.card.dbUuid },
+                        onEditQuantityClick = { cardToEditQuantityUuid = cardWithQuantity.card.dbUuid }
                     )
                 }
             }
@@ -247,8 +281,8 @@ fun FolderDetailScreen(
     cardToView?.let { cardWithQty ->
         CardDetailDialog(
             card = cardWithQty.card,
-            onDismiss = { cardToView = null },
-            onCardSelected = { newCard -> cardToView = CardWithQuantity(newCard, 0, 0L) },
+            onDismiss = { cardToViewUuid = null },
+            onCardSelected = { newCard -> cardToViewUuid = newCard.dbUuid },
             viewModel = viewModel
         )
     }
@@ -258,14 +292,14 @@ fun FolderDetailScreen(
         EditQuantityDialog(
             cardName = cardWithQty.card.name,
             currentQuantity = cardWithQty.quantity,
-            onDismiss = { cardToEditQuantity = null },
+            onDismiss = { cardToEditQuantityUuid = null },
             onQuantityChange = { newQuantity ->
                 viewModel.updateCardQuantityInFolder(folderId, cardWithQty.card.dbUuid, newQuantity)
-                cardToEditQuantity = null
+                cardToEditQuantityUuid = null
             },
             onDelete = {
                 viewModel.removeCardFromFolder(folderId, cardWithQty.card.dbUuid)
-                cardToEditQuantity = null
+                cardToEditQuantityUuid = null
             }
         )
     }
@@ -397,7 +431,9 @@ fun CardInFolderItem(
                             Text(
                                 text = "• $atkType",
                                 style = MaterialTheme.typography.labelSmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis
                             )
                         }
                     } else if (cardWithQuantity.card.isCompetitor) {
@@ -405,7 +441,9 @@ fun CardInFolderItem(
                             Text(
                                 text = "• $division",
                                 style = MaterialTheme.typography.labelSmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis
                             )
                         }
                     }
@@ -485,6 +523,8 @@ fun CardDetailDialog(
 ) {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
+    val configuration = LocalConfiguration.current
+    val isLandscape = configuration.orientation == Configuration.ORIENTATION_LANDSCAPE
 
     var relatedFinishes by remember { mutableStateOf<List<Card>>(emptyList()) }
     var relatedCards by remember { mutableStateOf<List<Card>>(emptyList()) }
@@ -498,290 +538,97 @@ fun CardDetailDialog(
 
     AlertDialog(
         onDismissRequest = onDismiss,
+        properties = DialogProperties(
+            usePlatformDefaultWidth = false,
+            dismissOnBackPress = true,
+            dismissOnClickOutside = true
+        ),
+        modifier = if (isLandscape) Modifier.fillMaxWidth(0.95f) else Modifier.fillMaxWidth(0.9f),
         title = {
-            Column {
-                Text(card.name)
-                Spacer(modifier = Modifier.height(4.dp))
-                Surface(
-                    color = MaterialTheme.colorScheme.secondaryContainer,
-                    shape = MaterialTheme.shapes.extraSmall
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.Top
+            ) {
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(card.name)
+                    Spacer(modifier = Modifier.height(4.dp))
+                    Surface(
+                        color = MaterialTheme.colorScheme.secondaryContainer,
+                        shape = MaterialTheme.shapes.extraSmall
+                    ) {
+                        Text(
+                            text = card.cardType.replace("Card", ""),
+                            style = MaterialTheme.typography.labelSmall,
+                            modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
+                        )
+                    }
+                }
+                IconButton(
+                    onClick = onDismiss,
+                    modifier = Modifier.size(24.dp)
                 ) {
-                    Text(
-                        text = card.cardType.replace("Card", ""),
-                        style = MaterialTheme.typography.labelSmall,
-                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
+                    Icon(
+                        Icons.Default.Close,
+                        contentDescription = "Close",
+                        modifier = Modifier.size(20.dp)
                     )
                 }
             }
         },
         text = {
-            LazyColumn(
-                verticalArrangement = Arrangement.spacedBy(12.dp)
-            ) {
-                // Card image
-                item {
-                    AsyncImage(
-                        model = ImageUtils.buildCardImageRequest(context, card.dbUuid, thumbnail = false),
-                        contentDescription = card.name,
+            if (isLandscape) {
+                // Landscape mode: image on left, details on right
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(16.dp)
+                ) {
+                    // Card image with zoom - constrained height for landscape
+                    Box(
                         modifier = Modifier
-                            .fillMaxWidth()
-                            .aspectRatio(0.7f),
-                        contentScale = ContentScale.Fit
-                    )
-                }
-
-                // Stats for competitors
-                if (card.isCompetitor) {
-                    item {
-                        Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                            Text(
-                                text = "Stats",
-                                style = MaterialTheme.typography.labelMedium,
-                                fontWeight = FontWeight.Bold
-                            )
-                            Row(
-                                modifier = Modifier.fillMaxWidth(),
-                                horizontalArrangement = Arrangement.SpaceAround
-                            ) {
-                                CompetitorStatItemWithColor("Power", "PWR", card.power)
-                                CompetitorStatItemWithColor("Technique", "TEC", card.technique)
-                                CompetitorStatItemWithColor("Agility", "AGI", card.agility)
-                                CompetitorStatItemWithColor("Strike", "STR", card.strike)
-                                CompetitorStatItemWithColor("Submission", "SUB", card.submission)
-                                CompetitorStatItemWithColor("Grapple", "GRP", card.grapple)
-                            }
-                            card.division?.let {
-                                Text(
-                                    text = "Division: $it",
-                                    style = MaterialTheme.typography.bodySmall,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                                )
-                            }
-                        }
-                    }
-                }
-
-                // Main deck properties
-                if (card.isMainDeck) {
-                    item {
-                        Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                            Text(
-                                text = "Properties",
-                                style = MaterialTheme.typography.labelMedium,
-                                fontWeight = FontWeight.Bold
-                            )
-                            card.deckCardNumber?.let {
-                                Text("Deck #: $it", style = MaterialTheme.typography.bodySmall)
-                            }
-                            card.atkType?.let {
-                                Text("Attack Type: $it", style = MaterialTheme.typography.bodySmall)
-                            }
-                            card.playOrder?.let {
-                                Text("Play Order: $it", style = MaterialTheme.typography.bodySmall)
-                            }
-                        }
-                    }
-                }
-
-                // Rules text
-                card.rulesText?.let { rules ->
-                    item {
-                        Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                            Text(
-                                text = "Rules",
-                                style = MaterialTheme.typography.labelMedium,
-                                fontWeight = FontWeight.Bold
-                            )
-                            Text(
-                                text = rules,
-                                style = MaterialTheme.typography.bodySmall
-                            )
-                        }
-                    }
-                }
-
-                // Errata
-                card.errataText?.let { errata ->
-                    item {
-                        Surface(
-                            color = MaterialTheme.colorScheme.secondaryContainer,
-                            shape = MaterialTheme.shapes.small
-                        ) {
-                            Column(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .padding(8.dp),
-                                verticalArrangement = Arrangement.spacedBy(4.dp)
-                            ) {
-                                Text(
-                                    text = "Errata",
-                                    style = MaterialTheme.typography.labelMedium,
-                                    fontWeight = FontWeight.Bold
-                                )
-                                Text(
-                                    text = errata,
-                                    style = MaterialTheme.typography.bodySmall
-                                )
-                            }
-                        }
-                    }
-                }
-
-                // Related Finishes
-                if (relatedFinishes.isNotEmpty()) {
-                    item {
-                        Surface(
-                            color = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.3f),
-                            shape = MaterialTheme.shapes.small
-                        ) {
-                            Column(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .padding(12.dp),
-                                verticalArrangement = Arrangement.spacedBy(8.dp)
-                            ) {
-                                Row(
-                                    horizontalArrangement = Arrangement.spacedBy(8.dp),
-                                    verticalAlignment = Alignment.CenterVertically
-                                ) {
-                                    Icon(
-                                        Icons.Default.AutoAwesome,
-                                        contentDescription = null,
-                                        tint = MaterialTheme.colorScheme.primary,
-                                        modifier = Modifier.size(20.dp)
-                                    )
-                                    Text(
-                                        text = "Related Finishes",
-                                        style = MaterialTheme.typography.labelMedium,
-                                        fontWeight = FontWeight.Bold
-                                    )
-                                }
-                                relatedFinishes.forEach { finish ->
-                                    Card(
-                                        modifier = Modifier
-                                            .fillMaxWidth()
-                                            .clickable { onCardSelected(finish) },
-                                        colors = CardDefaults.cardColors(
-                                            containerColor = MaterialTheme.colorScheme.surface
-                                        )
-                                    ) {
-                                        Row(
-                                            modifier = Modifier.padding(8.dp),
-                                            horizontalArrangement = Arrangement.spacedBy(8.dp),
-                                            verticalAlignment = Alignment.CenterVertically
-                                        ) {
-                                            AsyncImage(
-                                                model = ImageUtils.buildCardImageRequest(context, finish.dbUuid, thumbnail = true),
-                                                contentDescription = finish.name,
-                                                modifier = Modifier
-                                                    .size(40.dp)
-                                                    .aspectRatio(0.7f),
-                                                contentScale = ContentScale.Crop
-                                            )
-                                            Text(
-                                                text = finish.name,
-                                                style = MaterialTheme.typography.bodySmall,
-                                                modifier = Modifier.weight(1f)
-                                            )
-                                            Icon(
-                                                Icons.Default.ChevronRight,
-                                                contentDescription = "View",
-                                                modifier = Modifier.size(16.dp)
-                                            )
-                                        }
-                                    }
-                                }
-                            }
-                        }
-                    }
-                }
-
-                // Related Cards
-                if (relatedCards.isNotEmpty()) {
-                    item {
-                        Surface(
-                            color = MaterialTheme.colorScheme.tertiaryContainer.copy(alpha = 0.3f),
-                            shape = MaterialTheme.shapes.small
-                        ) {
-                            Column(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .padding(12.dp),
-                                verticalArrangement = Arrangement.spacedBy(8.dp)
-                            ) {
-                                Row(
-                                    horizontalArrangement = Arrangement.spacedBy(8.dp),
-                                    verticalAlignment = Alignment.CenterVertically
-                                ) {
-                                    Icon(
-                                        Icons.Default.Link,
-                                        contentDescription = null,
-                                        tint = MaterialTheme.colorScheme.tertiary,
-                                        modifier = Modifier.size(20.dp)
-                                    )
-                                    Text(
-                                        text = "Related Cards",
-                                        style = MaterialTheme.typography.labelMedium,
-                                        fontWeight = FontWeight.Bold
-                                    )
-                                }
-                                relatedCards.forEach { relatedCard ->
-                                    Card(
-                                        modifier = Modifier
-                                            .fillMaxWidth()
-                                            .clickable { onCardSelected(relatedCard) },
-                                        colors = CardDefaults.cardColors(
-                                            containerColor = MaterialTheme.colorScheme.surface
-                                        )
-                                    ) {
-                                        Row(
-                                            modifier = Modifier.padding(8.dp),
-                                            horizontalArrangement = Arrangement.spacedBy(8.dp),
-                                            verticalAlignment = Alignment.CenterVertically
-                                        ) {
-                                            AsyncImage(
-                                                model = ImageUtils.buildCardImageRequest(context, relatedCard.dbUuid, thumbnail = true),
-                                                contentDescription = relatedCard.name,
-                                                modifier = Modifier
-                                                    .size(40.dp)
-                                                    .aspectRatio(0.7f),
-                                                contentScale = ContentScale.Crop
-                                            )
-                                            Text(
-                                                text = relatedCard.name,
-                                                style = MaterialTheme.typography.bodySmall,
-                                                modifier = Modifier.weight(1f)
-                                            )
-                                            Icon(
-                                                Icons.Default.ChevronRight,
-                                                contentDescription = "View",
-                                                modifier = Modifier.size(16.dp)
-                                            )
-                                        }
-                                    }
-                                }
-                            }
-                        }
-                    }
-                }
-
-                // Release set
-                card.releaseSet?.let { set ->
-                    item {
-                        Text(
-                            text = "Set: $set",
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                            .weight(1f)
+                            .fillMaxHeight()
+                    ) {
+                        ZoomableImage(
+                            model = ImageUtils.buildCardImageRequest(context, card.dbUuid, thumbnail = false),
+                            contentDescription = card.name,
+                            modifier = Modifier
+                                .heightIn(max = 300.dp)
+                                .aspectRatio(0.7f)
+                                .align(Alignment.TopCenter)
                         )
                     }
+
+                    // Card details
+                    LazyColumn(
+                        modifier = Modifier.weight(1f),
+                        verticalArrangement = Arrangement.spacedBy(12.dp)
+                    ) {
+                        CardDetailsContent(card, relatedFinishes, relatedCards, context, onCardSelected)
+                    }
+                }
+            } else {
+                // Portrait mode: image on top, details below
+                LazyColumn(
+                    verticalArrangement = Arrangement.spacedBy(12.dp)
+                ) {
+                    // Card image with zoom
+                    item {
+                        ZoomableImage(
+                            model = ImageUtils.buildCardImageRequest(context, card.dbUuid, thumbnail = false),
+                            contentDescription = card.name,
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .aspectRatio(0.7f)
+                        )
+                    }
+
+                    // Card details
+                    CardDetailsContent(card, relatedFinishes, relatedCards, context, onCardSelected)
                 }
             }
         },
-        confirmButton = {
-            TextButton(onClick = onDismiss) {
-                Text("Close")
-            }
-        }
+        confirmButton = {}
     )
 }
 
@@ -1122,4 +969,306 @@ private fun parseCsvLineParts(line: String): List<String> {
     parts.add(current.toString().trim())
 
     return parts
+}
+
+/**
+ * Zoomable image composable with pinch-to-zoom support
+ */
+@Composable
+private fun ZoomableImage(
+    model: Any?,
+    contentDescription: String?,
+    modifier: Modifier = Modifier
+) {
+    var scale by remember { mutableStateOf(1f) }
+    var offset by remember { mutableStateOf(Offset.Zero) }
+
+    val state = rememberTransformableState { zoomChange, offsetChange, _ ->
+        scale = (scale * zoomChange).coerceIn(1f, 5f)
+
+        // Only allow panning when zoomed in
+        if (scale > 1f) {
+            offset += offsetChange
+        } else {
+            offset = Offset.Zero
+        }
+    }
+
+    Box(
+        modifier = modifier
+            .fillMaxWidth()
+            .clip(MaterialTheme.shapes.medium)
+    ) {
+        AsyncImage(
+            model = model,
+            contentDescription = contentDescription,
+            modifier = Modifier
+                .fillMaxWidth()
+                .graphicsLayer(
+                    scaleX = scale,
+                    scaleY = scale,
+                    translationX = offset.x,
+                    translationY = offset.y
+                )
+                .transformable(state = state),
+            contentScale = ContentScale.Fit
+        )
+    }
+}
+
+/**
+ * Card details content (stats, rules, related cards, etc.)
+ */
+private fun LazyListScope.CardDetailsContent(
+    card: Card,
+    relatedFinishes: List<Card>,
+    relatedCards: List<Card>,
+    context: android.content.Context,
+    onCardSelected: (Card) -> Unit
+) {
+    // Stats for competitors
+    if (card.isCompetitor) {
+        item {
+            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                Text(
+                    text = "Stats",
+                    style = MaterialTheme.typography.labelMedium,
+                    fontWeight = FontWeight.Bold
+                )
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceAround
+                ) {
+                    CompetitorStatItemWithColor("Power", "PWR", card.power)
+                    CompetitorStatItemWithColor("Technique", "TEC", card.technique)
+                    CompetitorStatItemWithColor("Agility", "AGI", card.agility)
+                    CompetitorStatItemWithColor("Strike", "STR", card.strike)
+                    CompetitorStatItemWithColor("Submission", "SUB", card.submission)
+                    CompetitorStatItemWithColor("Grapple", "GRP", card.grapple)
+                }
+                card.division?.let {
+                    Text(
+                        text = "Division: $it",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+            }
+        }
+    }
+
+    // Main deck properties
+    if (card.isMainDeck) {
+        item {
+            Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                Text(
+                    text = "Properties",
+                    style = MaterialTheme.typography.labelMedium,
+                    fontWeight = FontWeight.Bold
+                )
+                card.deckCardNumber?.let {
+                    Text("Deck #: $it", style = MaterialTheme.typography.bodySmall)
+                }
+                card.atkType?.let {
+                    Text("Attack Type: $it", style = MaterialTheme.typography.bodySmall)
+                }
+                card.playOrder?.let {
+                    Text("Play Order: $it", style = MaterialTheme.typography.bodySmall)
+                }
+            }
+        }
+    }
+
+    // Rules text
+    card.rulesText?.let { rules ->
+        item {
+            Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                Text(
+                    text = "Rules",
+                    style = MaterialTheme.typography.labelMedium,
+                    fontWeight = FontWeight.Bold
+                )
+                Text(
+                    text = rules,
+                    style = MaterialTheme.typography.bodySmall
+                )
+            }
+        }
+    }
+
+    // Errata
+    card.errataText?.let { errata ->
+        item {
+            Surface(
+                color = MaterialTheme.colorScheme.secondaryContainer,
+                shape = MaterialTheme.shapes.small
+            ) {
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(8.dp),
+                    verticalArrangement = Arrangement.spacedBy(4.dp)
+                ) {
+                    Text(
+                        text = "Errata",
+                        style = MaterialTheme.typography.labelMedium,
+                        fontWeight = FontWeight.Bold
+                    )
+                    Text(
+                        text = errata,
+                        style = MaterialTheme.typography.bodySmall
+                    )
+                }
+            }
+        }
+    }
+
+    // Related Finishes
+    if (relatedFinishes.isNotEmpty()) {
+        item {
+            Surface(
+                color = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.3f),
+                shape = MaterialTheme.shapes.small
+            ) {
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(12.dp),
+                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    Row(
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Icon(
+                            Icons.Default.AutoAwesome,
+                            contentDescription = null,
+                            tint = MaterialTheme.colorScheme.primary,
+                            modifier = Modifier.size(20.dp)
+                        )
+                        Text(
+                            text = "Related Finishes",
+                            style = MaterialTheme.typography.labelMedium,
+                            fontWeight = FontWeight.Bold
+                        )
+                    }
+                    relatedFinishes.forEach { finish ->
+                        Card(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clickable { onCardSelected(finish) },
+                            colors = CardDefaults.cardColors(
+                                containerColor = MaterialTheme.colorScheme.surface
+                            )
+                        ) {
+                            Row(
+                                modifier = Modifier.padding(8.dp),
+                                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                AsyncImage(
+                                    model = ImageUtils.buildCardImageRequest(context, finish.dbUuid, thumbnail = true),
+                                    contentDescription = finish.name,
+                                    modifier = Modifier
+                                        .size(40.dp)
+                                        .aspectRatio(0.7f),
+                                    contentScale = ContentScale.Crop
+                                )
+                                Text(
+                                    text = finish.name,
+                                    style = MaterialTheme.typography.bodySmall,
+                                    modifier = Modifier.weight(1f)
+                                )
+                                Icon(
+                                    Icons.Default.ChevronRight,
+                                    contentDescription = "View",
+                                    modifier = Modifier.size(16.dp)
+                                )
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    // Related Cards
+    if (relatedCards.isNotEmpty()) {
+        item {
+            Surface(
+                color = MaterialTheme.colorScheme.tertiaryContainer.copy(alpha = 0.3f),
+                shape = MaterialTheme.shapes.small
+            ) {
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(12.dp),
+                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    Row(
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Icon(
+                            Icons.Default.Link,
+                            contentDescription = null,
+                            tint = MaterialTheme.colorScheme.tertiary,
+                            modifier = Modifier.size(20.dp)
+                        )
+                        Text(
+                            text = "Related Cards",
+                            style = MaterialTheme.typography.labelMedium,
+                            fontWeight = FontWeight.Bold
+                        )
+                    }
+                    relatedCards.forEach { relatedCard ->
+                        Card(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clickable { onCardSelected(relatedCard) },
+                            colors = CardDefaults.cardColors(
+                                containerColor = MaterialTheme.colorScheme.surface
+                            )
+                        ) {
+                            Row(
+                                modifier = Modifier.padding(8.dp),
+                                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                AsyncImage(
+                                    model = ImageUtils.buildCardImageRequest(context, relatedCard.dbUuid, thumbnail = true),
+                                    contentDescription = relatedCard.name,
+                                    modifier = Modifier
+                                        .size(40.dp)
+                                        .aspectRatio(0.7f),
+                                    contentScale = ContentScale.Crop
+                                )
+                                Text(
+                                    text = relatedCard.name,
+                                    style = MaterialTheme.typography.bodySmall,
+                                    modifier = Modifier.weight(1f)
+                                )
+                                Icon(
+                                    Icons.Default.ChevronRight,
+                                    contentDescription = "View",
+                                    modifier = Modifier.size(16.dp)
+                                )
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    // Release set
+    card.releaseSet?.let { set ->
+        item {
+            Text(
+                text = "Set: $set",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+        }
+    }
 }
