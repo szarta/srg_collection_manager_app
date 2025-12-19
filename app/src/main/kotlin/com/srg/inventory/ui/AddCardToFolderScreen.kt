@@ -220,6 +220,7 @@ fun AddCardToFolderScreen(
             card = card,
             viewModel = viewModel,
             onDismiss = { cardToAdd = null },
+            onCardSelected = { newCard -> cardToAdd = newCard },
             onAdd = { quantity ->
                 viewModel.addCardToFolder(folderId, card.dbUuid, quantity)
                 cardToAdd = null
@@ -295,6 +296,7 @@ fun CardDetailDialogWithAdd(
     card: Card,
     viewModel: CollectionViewModel,
     onDismiss: () -> Unit,
+    onCardSelected: (Card) -> Unit,
     onAdd: (Int) -> Unit
 ) {
     val context = LocalContext.current
@@ -303,7 +305,6 @@ fun CardDetailDialogWithAdd(
 
     var relatedFinishes by remember { mutableStateOf<List<Card>>(emptyList()) }
     var relatedCards by remember { mutableStateOf<List<Card>>(emptyList()) }
-    var selectedRelatedCard by remember { mutableStateOf<Card?>(null) }
 
     LaunchedEffect(card.dbUuid) {
         scope.launch {
@@ -494,7 +495,7 @@ fun CardDetailDialogWithAdd(
                                         Card(
                                             modifier = Modifier
                                                 .fillMaxWidth()
-                                                .clickable { selectedRelatedCard = finish },
+                                                .clickable { onCardSelected(finish) },
                                             colors = CardDefaults.cardColors(
                                                 containerColor = MaterialTheme.colorScheme.surface
                                             )
@@ -556,7 +557,7 @@ fun CardDetailDialogWithAdd(
                                         Card(
                                             modifier = Modifier
                                                 .fillMaxWidth()
-                                                .clickable { selectedRelatedCard = relatedCard },
+                                                .clickable { onCardSelected(relatedCard) },
                                             colors = CardDefaults.cardColors(
                                                 containerColor = MaterialTheme.colorScheme.surface
                                             )
@@ -647,16 +648,6 @@ fun CardDetailDialogWithAdd(
                 }
             }
         }
-    }
-
-    // Nested dialog for viewing related cards
-    selectedRelatedCard?.let { relatedCard ->
-        CardDetailDialogWithAdd(
-            card = relatedCard,
-            viewModel = viewModel,
-            onDismiss = { selectedRelatedCard = null },
-            onAdd = onAdd
-        )
     }
 }
 

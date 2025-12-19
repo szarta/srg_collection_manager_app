@@ -142,6 +142,34 @@ class CollectionViewModel(application: Application) : AndroidViewModel(applicati
     private val _inCollectionFolderId = MutableStateFlow<String?>(null)
     val inCollectionFolderId: StateFlow<String?> = _inCollectionFolderId.asStateFlow()
 
+    // Folder-specific filter state (separate from card search filters)
+    private val _folderSelectedCardType = MutableStateFlow<String?>(null)
+    val folderSelectedCardType: StateFlow<String?> = _folderSelectedCardType.asStateFlow()
+
+    private val _folderSelectedDeckCardNumbers = MutableStateFlow<Set<Int>>(emptySet())
+    val folderSelectedDeckCardNumbers: StateFlow<Set<Int>> = _folderSelectedDeckCardNumbers.asStateFlow()
+
+    private val _folderSelectedDivision = MutableStateFlow<String?>(null)
+    val folderSelectedDivision: StateFlow<String?> = _folderSelectedDivision.asStateFlow()
+
+    private val _folderMinPower = MutableStateFlow<Int>(5)
+    val folderMinPower: StateFlow<Int> = _folderMinPower.asStateFlow()
+
+    private val _folderMinTechnique = MutableStateFlow<Int>(5)
+    val folderMinTechnique: StateFlow<Int> = _folderMinTechnique.asStateFlow()
+
+    private val _folderMinAgility = MutableStateFlow<Int>(5)
+    val folderMinAgility: StateFlow<Int> = _folderMinAgility.asStateFlow()
+
+    private val _folderMinStrike = MutableStateFlow<Int>(5)
+    val folderMinStrike: StateFlow<Int> = _folderMinStrike.asStateFlow()
+
+    private val _folderMinSubmission = MutableStateFlow<Int>(5)
+    val folderMinSubmission: StateFlow<Int> = _folderMinSubmission.asStateFlow()
+
+    private val _folderMinGrapple = MutableStateFlow<Int>(5)
+    val folderMinGrapple: StateFlow<Int> = _folderMinGrapple.asStateFlow()
+
     // Temporary stubs for backwards compatibility (will be removed in full refactor)
     val selectedAtkType: StateFlow<String?> = MutableStateFlow<String?>(null).asStateFlow()
     val selectedPlayOrder: StateFlow<String?> = MutableStateFlow<String?>(null).asStateFlow()
@@ -476,6 +504,69 @@ class CollectionViewModel(application: Application) : AndroidViewModel(applicati
 
     fun setInCollectionFolderFilter(folderId: String?) {
         _inCollectionFolderId.value = folderId
+    }
+
+    // Folder filter setter functions
+    fun setFolderCardTypeFilter(cardType: String?) {
+        _folderSelectedCardType.value = cardType
+        // Clear type-specific filters when changing card type
+        if (cardType != "MainDeckCard") {
+            _folderSelectedDeckCardNumbers.value = emptySet()
+        }
+        if (cardType?.contains("Competitor") != true) {
+            _folderSelectedDivision.value = null
+            // Reset stats to default when not competitor
+            _folderMinPower.value = 5
+            _folderMinTechnique.value = 5
+            _folderMinAgility.value = 5
+            _folderMinStrike.value = 5
+            _folderMinSubmission.value = 5
+            _folderMinGrapple.value = 5
+        }
+    }
+
+    fun setFolderDeckCardNumbers(numbers: Set<Int>) {
+        _folderSelectedDeckCardNumbers.value = numbers
+    }
+
+    fun setFolderDivisionFilter(division: String?) {
+        _folderSelectedDivision.value = division
+    }
+
+    fun setFolderMinPower(value: Int) {
+        _folderMinPower.value = value
+    }
+
+    fun setFolderMinTechnique(value: Int) {
+        _folderMinTechnique.value = value
+    }
+
+    fun setFolderMinAgility(value: Int) {
+        _folderMinAgility.value = value
+    }
+
+    fun setFolderMinStrike(value: Int) {
+        _folderMinStrike.value = value
+    }
+
+    fun setFolderMinSubmission(value: Int) {
+        _folderMinSubmission.value = value
+    }
+
+    fun setFolderMinGrapple(value: Int) {
+        _folderMinGrapple.value = value
+    }
+
+    fun clearFolderFilters() {
+        _folderSelectedCardType.value = null
+        _folderSelectedDeckCardNumbers.value = emptySet()
+        _folderSelectedDivision.value = null
+        _folderMinPower.value = 5
+        _folderMinTechnique.value = 5
+        _folderMinAgility.value = 5
+        _folderMinStrike.value = 5
+        _folderMinSubmission.value = 5
+        _folderMinGrapple.value = 5
     }
 
     // ==================== Sync Operations ====================

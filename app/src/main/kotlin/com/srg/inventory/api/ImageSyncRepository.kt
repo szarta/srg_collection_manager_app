@@ -31,7 +31,11 @@ class ImageSyncRepository(private val context: Context) {
      * Get the directory where synced images are stored
      */
     fun getSyncedImagesDir(): File {
-        return File(context.filesDir, IMAGES_DIR).apply { mkdirs() }
+        val dir = File(context.filesDir, IMAGES_DIR)
+        if (!dir.exists() && !dir.mkdirs()) {
+            Log.e(TAG, "Failed to create synced images directory: ${dir.absolutePath}")
+        }
+        return dir
     }
 
     /**
@@ -122,7 +126,23 @@ class ImageSyncRepository(private val context: Context) {
             // Find images that need syncing (missing or different hash)
             val toSync = serverManifest.images.filter { (uuid, serverInfo) ->
                 val localHash = localHashes[uuid]
-                localHash == null || localHash != serverInfo.hash
+
+                // Check if image exists (either synced or bundled)
+                val syncedExists = getSyncedImageFile(uuid)?.exists() == true
+                val bundledExists = try {
+                    context.assets.open("mobile/${uuid.take(2)}/$uuid.webp").use { true }
+                } catch (e: Exception) {
+                    false
+                }
+                val fileExists = syncedExists || bundledExists
+
+                // Sync if: hash mismatch OR file missing
+                // (if hash matches and file exists, we're good)
+                if (localHash == serverInfo.hash && fileExists) {
+                    false  // Hash matches and file exists - no need to sync
+                } else {
+                    true   // Hash missing/different or file missing - need to sync
+                }
             }
 
             Log.d(TAG, "Images to sync: ${toSync.size}")
@@ -181,7 +201,10 @@ class ImageSyncRepository(private val context: Context) {
             }
 
             val first2 = uuid.take(2)
-            val dir = File(getSyncedImagesDir(), first2).apply { mkdirs() }
+            val dir = File(getSyncedImagesDir(), first2)
+            if (!dir.exists() && !dir.mkdirs()) {
+                throw Exception("Failed to create directory: ${dir.absolutePath}")
+            }
             val file = File(dir, "$uuid.webp")
 
             response.body?.byteStream()?.use { input ->

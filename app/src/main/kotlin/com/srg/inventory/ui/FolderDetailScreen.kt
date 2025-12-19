@@ -47,16 +47,16 @@ fun FolderDetailScreen(
     val isSharing by viewModel.isSharing.collectAsState()
     val shareUrl by viewModel.shareUrl.collectAsState()
 
-    // Filter state for folder view
-    val selectedCardType by viewModel.selectedCardType.collectAsState()
-    val selectedDeckCardNumbers by viewModel.selectedDeckCardNumbers.collectAsState()
-    val selectedDivision by viewModel.selectedDivision.collectAsState()
-    val minPower by viewModel.minPower.collectAsState()
-    val minTechnique by viewModel.minTechnique.collectAsState()
-    val minAgility by viewModel.minAgility.collectAsState()
-    val minStrike by viewModel.minStrike.collectAsState()
-    val minSubmission by viewModel.minSubmission.collectAsState()
-    val minGrapple by viewModel.minGrapple.collectAsState()
+    // Filter state for folder view (separate from card search filters)
+    val selectedCardType by viewModel.folderSelectedCardType.collectAsState()
+    val selectedDeckCardNumbers by viewModel.folderSelectedDeckCardNumbers.collectAsState()
+    val selectedDivision by viewModel.folderSelectedDivision.collectAsState()
+    val minPower by viewModel.folderMinPower.collectAsState()
+    val minTechnique by viewModel.folderMinTechnique.collectAsState()
+    val minAgility by viewModel.folderMinAgility.collectAsState()
+    val minStrike by viewModel.folderMinStrike.collectAsState()
+    val minSubmission by viewModel.folderMinSubmission.collectAsState()
+    val minGrapple by viewModel.folderMinGrapple.collectAsState()
 
     // Apply filters to cards in folder
     val cardsWithQuantities = remember(
@@ -170,12 +170,12 @@ fun FolderDetailScreen(
                         Icon(Icons.Default.FileDownload, contentDescription = "Import from CSV")
                     }
                     // Export to CSV (upload/share to file)
-                    if (cardsWithQuantities.isNotEmpty()) {
+                    if (allCardsInFolder.isNotEmpty()) {
                         IconButton(onClick = {
                             exportFolderToCsv(
                                 context = context,
                                 folderName = currentFolder?.name ?: "folder",
-                                cards = cardsWithQuantities
+                                cards = allCardsInFolder
                             )
                         }) {
                             Icon(Icons.Default.FileUpload, contentDescription = "Export to CSV")
@@ -248,6 +248,7 @@ fun FolderDetailScreen(
         CardDetailDialog(
             card = cardWithQty.card,
             onDismiss = { cardToView = null },
+            onCardSelected = { newCard -> cardToView = CardWithQuantity(newCard, 0, 0L) },
             viewModel = viewModel
         )
     }
@@ -274,7 +275,8 @@ fun FolderDetailScreen(
         FilterDialog(
             viewModel = viewModel,
             onDismiss = { showFilterDialog = false },
-            onApply = { showFilterDialog = false }
+            onApply = { showFilterDialog = false },
+            forFolder = true
         )
     }
 
@@ -478,6 +480,7 @@ fun EmptyFolderState(
 fun CardDetailDialog(
     card: Card,
     onDismiss: () -> Unit,
+    onCardSelected: (Card) -> Unit,
     viewModel: CollectionViewModel
 ) {
     val context = LocalContext.current
@@ -485,7 +488,6 @@ fun CardDetailDialog(
 
     var relatedFinishes by remember { mutableStateOf<List<Card>>(emptyList()) }
     var relatedCards by remember { mutableStateOf<List<Card>>(emptyList()) }
-    var selectedRelatedCard by remember { mutableStateOf<Card?>(null) }
 
     LaunchedEffect(card.dbUuid) {
         scope.launch {
@@ -658,7 +660,7 @@ fun CardDetailDialog(
                                     Card(
                                         modifier = Modifier
                                             .fillMaxWidth()
-                                            .clickable { selectedRelatedCard = finish },
+                                            .clickable { onCardSelected(finish) },
                                         colors = CardDefaults.cardColors(
                                             containerColor = MaterialTheme.colorScheme.surface
                                         )
@@ -727,7 +729,7 @@ fun CardDetailDialog(
                                     Card(
                                         modifier = Modifier
                                             .fillMaxWidth()
-                                            .clickable { selectedRelatedCard = relatedCard },
+                                            .clickable { onCardSelected(relatedCard) },
                                         colors = CardDefaults.cardColors(
                                             containerColor = MaterialTheme.colorScheme.surface
                                         )
@@ -781,15 +783,6 @@ fun CardDetailDialog(
             }
         }
     )
-
-    // Show related card detail recursively
-    selectedRelatedCard?.let { relatedCard ->
-        CardDetailDialog(
-            card = relatedCard,
-            onDismiss = { selectedRelatedCard = null },
-            viewModel = viewModel
-        )
-    }
 }
 
 @Composable

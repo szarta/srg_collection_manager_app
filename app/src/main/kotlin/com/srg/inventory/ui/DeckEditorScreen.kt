@@ -483,7 +483,8 @@ fun DeckEditorScreen(
     cardToView?.let { card ->
         DeckCardDetailDialog(
             card = card,
-            onDismiss = { cardToView = null }
+            onDismiss = { cardToView = null },
+            onCardSelected = { newCard -> cardToView = newCard }
         )
     }
 }
@@ -1300,7 +1301,8 @@ private suspend fun shareDeckToWeb(
 @Composable
 private fun DeckCardDetailDialog(
     card: Card,
-    onDismiss: () -> Unit
+    onDismiss: () -> Unit,
+    onCardSelected: (Card) -> Unit
 ) {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
@@ -1309,7 +1311,6 @@ private fun DeckCardDetailDialog(
 
     var relatedFinishes by remember { mutableStateOf<List<Card>>(emptyList()) }
     var relatedCards by remember { mutableStateOf<List<Card>>(emptyList()) }
-    var selectedRelatedCard by remember { mutableStateOf<Card?>(null) }
 
     LaunchedEffect(card.dbUuid) {
         scope.launch {
@@ -1482,7 +1483,7 @@ private fun DeckCardDetailDialog(
                                     androidx.compose.material3.Card(
                                         modifier = Modifier
                                             .fillMaxWidth()
-                                            .clickable { selectedRelatedCard = finish },
+                                            .clickable { onCardSelected(finish) },
                                         colors = CardDefaults.cardColors(
                                             containerColor = MaterialTheme.colorScheme.surface
                                         )
@@ -1551,7 +1552,7 @@ private fun DeckCardDetailDialog(
                                     androidx.compose.material3.Card(
                                         modifier = Modifier
                                             .fillMaxWidth()
-                                            .clickable { selectedRelatedCard = relatedCard },
+                                            .clickable { onCardSelected(relatedCard) },
                                         colors = CardDefaults.cardColors(
                                             containerColor = MaterialTheme.colorScheme.surface
                                         )
@@ -1605,14 +1606,6 @@ private fun DeckCardDetailDialog(
             }
         }
     )
-
-    // Show related card detail dialog if selected
-    selectedRelatedCard?.let { relCard ->
-        DeckCardDetailDialog(
-            card = relCard,
-            onDismiss = { selectedRelatedCard = null }
-        )
-    }
 }
 
 @Composable

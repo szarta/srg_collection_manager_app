@@ -17,18 +17,19 @@ import androidx.compose.ui.window.Dialog
 fun FilterDialog(
     viewModel: CollectionViewModel,
     onDismiss: () -> Unit,
-    onApply: () -> Unit
+    onApply: () -> Unit,
+    forFolder: Boolean = false
 ) {
-    val selectedCardType by viewModel.selectedCardType.collectAsState()
-    val selectedDeckCardNumbers by viewModel.selectedDeckCardNumbers.collectAsState()
-    val selectedDivision by viewModel.selectedDivision.collectAsState()
+    val selectedCardType by if (forFolder) viewModel.folderSelectedCardType.collectAsState() else viewModel.selectedCardType.collectAsState()
+    val selectedDeckCardNumbers by if (forFolder) viewModel.folderSelectedDeckCardNumbers.collectAsState() else viewModel.selectedDeckCardNumbers.collectAsState()
+    val selectedDivision by if (forFolder) viewModel.folderSelectedDivision.collectAsState() else viewModel.selectedDivision.collectAsState()
     val searchScopes by viewModel.searchScopes.collectAsState()
-    val minPower by viewModel.minPower.collectAsState()
-    val minTechnique by viewModel.minTechnique.collectAsState()
-    val minAgility by viewModel.minAgility.collectAsState()
-    val minStrike by viewModel.minStrike.collectAsState()
-    val minSubmission by viewModel.minSubmission.collectAsState()
-    val minGrapple by viewModel.minGrapple.collectAsState()
+    val minPower by if (forFolder) viewModel.folderMinPower.collectAsState() else viewModel.minPower.collectAsState()
+    val minTechnique by if (forFolder) viewModel.folderMinTechnique.collectAsState() else viewModel.minTechnique.collectAsState()
+    val minAgility by if (forFolder) viewModel.folderMinAgility.collectAsState() else viewModel.minAgility.collectAsState()
+    val minStrike by if (forFolder) viewModel.folderMinStrike.collectAsState() else viewModel.minStrike.collectAsState()
+    val minSubmission by if (forFolder) viewModel.folderMinSubmission.collectAsState() else viewModel.minSubmission.collectAsState()
+    val minGrapple by if (forFolder) viewModel.folderMinGrapple.collectAsState() else viewModel.minGrapple.collectAsState()
     val cardTypes by viewModel.cardTypes.collectAsState()
     val divisions by viewModel.divisions.collectAsState()
 
@@ -56,51 +57,53 @@ fun FilterDialog(
                         .weight(1f)
                         .verticalScroll(rememberScrollState())
                 ) {
-                    // Search Scope Toggles
-                    Text("Search in:", style = MaterialTheme.typography.titleMedium)
-                    Row(
-                        modifier = Modifier.padding(vertical = 8.dp),
-                        horizontalArrangement = Arrangement.spacedBy(8.dp)
-                    ) {
-                        FilterChip(
-                            selected = searchScopes.contains("name"),
-                            onClick = {
-                                val newScopes = if (searchScopes.contains("name")) {
-                                    searchScopes - "name"
-                                } else {
-                                    searchScopes + "name"
-                                }
-                                viewModel.setSearchScopes(newScopes)
-                            },
-                            label = { Text("Name") }
-                        )
-                        FilterChip(
-                            selected = searchScopes.contains("tags"),
-                            onClick = {
-                                val newScopes = if (searchScopes.contains("tags")) {
-                                    searchScopes - "tags"
-                                } else {
-                                    searchScopes + "tags"
-                                }
-                                viewModel.setSearchScopes(newScopes)
-                            },
-                            label = { Text("Tags") }
-                        )
-                        FilterChip(
-                            selected = searchScopes.contains("rules_text"),
-                            onClick = {
-                                val newScopes = if (searchScopes.contains("rules_text")) {
-                                    searchScopes - "rules_text"
-                                } else {
-                                    searchScopes + "rules_text"
-                                }
-                                viewModel.setSearchScopes(newScopes)
-                            },
-                            label = { Text("Card Text") }
-                        )
-                    }
+                    // Search Scope Toggles (only for search filters, not folder filters)
+                    if (!forFolder) {
+                        Text("Search in:", style = MaterialTheme.typography.titleMedium)
+                        Row(
+                            modifier = Modifier.padding(vertical = 8.dp),
+                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            FilterChip(
+                                selected = searchScopes.contains("name"),
+                                onClick = {
+                                    val newScopes = if (searchScopes.contains("name")) {
+                                        searchScopes - "name"
+                                    } else {
+                                        searchScopes + "name"
+                                    }
+                                    viewModel.setSearchScopes(newScopes)
+                                },
+                                label = { Text("Name") }
+                            )
+                            FilterChip(
+                                selected = searchScopes.contains("tags"),
+                                onClick = {
+                                    val newScopes = if (searchScopes.contains("tags")) {
+                                        searchScopes - "tags"
+                                    } else {
+                                        searchScopes + "tags"
+                                    }
+                                    viewModel.setSearchScopes(newScopes)
+                                },
+                                label = { Text("Tags") }
+                            )
+                            FilterChip(
+                                selected = searchScopes.contains("rules_text"),
+                                onClick = {
+                                    val newScopes = if (searchScopes.contains("rules_text")) {
+                                        searchScopes - "rules_text"
+                                    } else {
+                                        searchScopes + "rules_text"
+                                    }
+                                    viewModel.setSearchScopes(newScopes)
+                                },
+                                label = { Text("Card Text") }
+                            )
+                        }
 
-                    Divider(modifier = Modifier.padding(vertical = 16.dp))
+                        Divider(modifier = Modifier.padding(vertical = 16.dp))
+                    }
 
                     // Card Type
                     Text("Card Type:", style = MaterialTheme.typography.titleMedium)
@@ -111,14 +114,20 @@ fun FilterDialog(
                         item {
                             FilterChip(
                                 selected = selectedCardType == null,
-                                onClick = { viewModel.setCardTypeFilter(null) },
+                                onClick = {
+                                    if (forFolder) viewModel.setFolderCardTypeFilter(null)
+                                    else viewModel.setCardTypeFilter(null)
+                                },
                                 label = { Text("All") }
                             )
                         }
                         items(cardTypes) { type ->
                             FilterChip(
                                 selected = selectedCardType == type,
-                                onClick = { viewModel.setCardTypeFilter(type) },
+                                onClick = {
+                                    if (forFolder) viewModel.setFolderCardTypeFilter(type)
+                                    else viewModel.setCardTypeFilter(type)
+                                },
                                 label = { Text(type.replace("Card", "")) }
                             )
                         }
@@ -153,7 +162,8 @@ fun FilterDialog(
                                                     } else {
                                                         selectedDeckCardNumbers + number
                                                     }
-                                                    viewModel.setDeckCardNumbers(newNumbers)
+                                                    if (forFolder) viewModel.setFolderDeckCardNumbers(newNumbers)
+                                                    else viewModel.setDeckCardNumbers(newNumbers)
                                                 },
                                                 label = { Text(number.toString()) },
                                                 modifier = Modifier.weight(1f)
@@ -176,32 +186,32 @@ fun FilterDialog(
                         StatSlider(
                             label = "Power (PWR)",
                             value = minPower,
-                            onValueChange = { viewModel.setMinPower(it) }
+                            onValueChange = { if (forFolder) viewModel.setFolderMinPower(it) else viewModel.setMinPower(it) }
                         )
                         StatSlider(
                             label = "Technique (TEC)",
                             value = minTechnique,
-                            onValueChange = { viewModel.setMinTechnique(it) }
+                            onValueChange = { if (forFolder) viewModel.setFolderMinTechnique(it) else viewModel.setMinTechnique(it) }
                         )
                         StatSlider(
                             label = "Agility (AGI)",
                             value = minAgility,
-                            onValueChange = { viewModel.setMinAgility(it) }
+                            onValueChange = { if (forFolder) viewModel.setFolderMinAgility(it) else viewModel.setMinAgility(it) }
                         )
                         StatSlider(
                             label = "Strike (STR)",
                             value = minStrike,
-                            onValueChange = { viewModel.setMinStrike(it) }
+                            onValueChange = { if (forFolder) viewModel.setFolderMinStrike(it) else viewModel.setMinStrike(it) }
                         )
                         StatSlider(
                             label = "Submission (SUB)",
                             value = minSubmission,
-                            onValueChange = { viewModel.setMinSubmission(it) }
+                            onValueChange = { if (forFolder) viewModel.setFolderMinSubmission(it) else viewModel.setMinSubmission(it) }
                         )
                         StatSlider(
                             label = "Grapple (GRP)",
                             value = minGrapple,
-                            onValueChange = { viewModel.setMinGrapple(it) }
+                            onValueChange = { if (forFolder) viewModel.setFolderMinGrapple(it) else viewModel.setMinGrapple(it) }
                         )
                     }
 
@@ -216,14 +226,20 @@ fun FilterDialog(
                             item {
                                 FilterChip(
                                     selected = selectedDivision == null,
-                                    onClick = { viewModel.setDivisionFilter(null) },
+                                    onClick = {
+                                        if (forFolder) viewModel.setFolderDivisionFilter(null)
+                                        else viewModel.setDivisionFilter(null)
+                                    },
                                     label = { Text("All") }
                                 )
                             }
                             items(divisions) { division ->
                                 FilterChip(
                                     selected = selectedDivision == division,
-                                    onClick = { viewModel.setDivisionFilter(division) },
+                                    onClick = {
+                                        if (forFolder) viewModel.setFolderDivisionFilter(division)
+                                        else viewModel.setDivisionFilter(division)
+                                    },
                                     label = { Text(division) }
                                 )
                             }
@@ -240,7 +256,8 @@ fun FilterDialog(
                 ) {
                     OutlinedButton(
                         onClick = {
-                            viewModel.clearFilters()
+                            if (forFolder) viewModel.clearFolderFilters()
+                            else viewModel.clearFilters()
                             onDismiss()
                         },
                         modifier = Modifier.weight(1f)
