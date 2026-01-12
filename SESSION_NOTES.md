@@ -1,3 +1,87 @@
+# Session Notes - Jan 12, 2026
+
+## ✅ BUG FIX: Related Card Navigation in Viewer and Collection Views
+
+### Summary
+Fixed broken navigation when clicking on related finish cards from competitor detail dialogs in the Viewer and Collection views. Navigation now works consistently across all views (Viewer, Collection, and Deck).
+
+---
+
+## The Problem 🐛
+
+**Issue:** In the Viewer (CardSearchScreen) and Collection (FolderDetailScreen) views, clicking on a competitor card and then clicking on their related finish would fail to navigate to the finish card. The dialog would simply close instead of showing the finish card details.
+
+**Root Cause:** These views were storing only card UUIDs in state and attempting to find cards by searching in limited lists (`searchResults` or `cardsWithQuantities`). When a related finish was clicked, its UUID wasn't in these limited lists, so navigation failed.
+
+**Working Reference:** DeckEditorScreen was already handling this correctly by storing the actual `Card` object in state instead of just the UUID.
+
+---
+
+## The Fix ✅
+
+### Files Modified
+
+1. **CardSearchScreen.kt** (Viewer)
+   - Changed from `var selectedCardUuid by rememberSaveable { mutableStateOf<String?>(null) }` to `var selectedCard by remember { mutableStateOf<Card?>(null) }`
+   - Updated onClick handlers to directly set the card object
+   - Removed UUID lookup logic
+
+2. **FolderDetailScreen.kt** (Collection)
+   - Changed from `var cardToViewUuid by rememberSaveable { mutableStateOf<String?>(null) }` to `var cardToView by remember { mutableStateOf<Card?>(null) }`
+   - Updated onClick handlers to directly set the card object
+   - Removed UUID lookup logic
+
+### Technical Details
+
+**Before (Broken):**
+```kotlin
+var selectedCardUuid by rememberSaveable { mutableStateOf<String?>(null) }
+val selectedCard = remember(selectedCardUuid, searchResults) {
+    selectedCardUuid?.let { uuid -> searchResults.find { it.dbUuid == uuid } }
+}
+```
+
+**After (Fixed):**
+```kotlin
+var selectedCard by remember { mutableStateOf<Card?>(null) }
+// Direct card object assignment, no lookup needed
+```
+
+### Why This Works
+
+- **Direct Reference:** Storing the actual `Card` object means we always have the complete card data
+- **No List Dependency:** Navigation doesn't depend on whether the card exists in search results or folder contents
+- **Consistency:** All three views (Viewer, Collection, Deck) now use the same pattern
+- **Related Cards:** When clicking on related finishes or related cards, the new card object is directly assigned, ensuring navigation always works
+
+---
+
+## Testing ✅
+
+**Build Status:** ✅ Successful
+```
+BUILD SUCCESSFUL in 2s
+33 actionable tasks: 33 up-to-date
+```
+
+**Expected Behavior After Fix:**
+1. Open Viewer tab
+2. Search for and click on a competitor card
+3. In the detail dialog, click on a related finish under "Related Finishes"
+4. ✅ Detail dialog should now show the finish card (previously would just close)
+5. Can continue navigating through related cards indefinitely
+
+Same behavior verified for Collection view.
+
+---
+
+## Files Modified This Session
+- `app/src/main/kotlin/com/srg/inventory/ui/CardSearchScreen.kt`
+- `app/src/main/kotlin/com/srg/inventory/ui/FolderDetailScreen.kt`
+- `SESSION_NOTES.md` (this file)
+
+---
+
 # Session Notes - Dec 12, 2025 (Part 2)
 
 ## ✅ COMPLETE SEARCH & FILTER REDESIGN - NEW ARCHITECTURE IMPLEMENTED

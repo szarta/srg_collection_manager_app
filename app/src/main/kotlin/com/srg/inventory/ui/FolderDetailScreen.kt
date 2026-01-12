@@ -119,17 +119,9 @@ fun FolderDetailScreen(
         foldersWithCounts.find { it.folder.id == folderId }?.folder
     }
 
-    // Use rememberSaveable to persist across configuration changes
-    var cardToViewUuid by rememberSaveable { mutableStateOf<String?>(null) }
-    var cardToEditQuantityUuid by rememberSaveable { mutableStateOf<String?>(null) }
-
-    // Derive the actual card objects from UUIDs
-    val cardToView = remember(cardToViewUuid, cardsWithQuantities) {
-        cardToViewUuid?.let { uuid -> cardsWithQuantities.find { it.card.dbUuid == uuid } }
-    }
-    val cardToEditQuantity = remember(cardToEditQuantityUuid, cardsWithQuantities) {
-        cardToEditQuantityUuid?.let { uuid -> cardsWithQuantities.find { it.card.dbUuid == uuid } }
-    }
+    // Use remember to store card objects for viewing/editing
+    var cardToView by remember { mutableStateOf<Card?>(null) }
+    var cardToEditQuantity by remember { mutableStateOf<CardWithQuantity?>(null) }
 
     var showFilterDialog by rememberSaveable { mutableStateOf(false) }
     var showClearFolderDialog by rememberSaveable { mutableStateOf(false) }
@@ -269,8 +261,8 @@ fun FolderDetailScreen(
                 items(cardsWithQuantities, key = { it.card.dbUuid }) { cardWithQuantity ->
                     CardInFolderItem(
                         cardWithQuantity = cardWithQuantity,
-                        onClick = { cardToViewUuid = cardWithQuantity.card.dbUuid },
-                        onEditQuantityClick = { cardToEditQuantityUuid = cardWithQuantity.card.dbUuid }
+                        onClick = { cardToView = cardWithQuantity.card },
+                        onEditQuantityClick = { cardToEditQuantity = cardWithQuantity }
                     )
                 }
             }
@@ -278,11 +270,11 @@ fun FolderDetailScreen(
     }
 
     // View card details dialog
-    cardToView?.let { cardWithQty ->
+    cardToView?.let { card ->
         CardDetailDialog(
-            card = cardWithQty.card,
-            onDismiss = { cardToViewUuid = null },
-            onCardSelected = { newCard -> cardToViewUuid = newCard.dbUuid },
+            card = card,
+            onDismiss = { cardToView = null },
+            onCardSelected = { newCard -> cardToView = newCard },
             viewModel = viewModel
         )
     }
@@ -292,14 +284,14 @@ fun FolderDetailScreen(
         EditQuantityDialog(
             cardName = cardWithQty.card.name,
             currentQuantity = cardWithQty.quantity,
-            onDismiss = { cardToEditQuantityUuid = null },
+            onDismiss = { cardToEditQuantity = null },
             onQuantityChange = { newQuantity ->
                 viewModel.updateCardQuantityInFolder(folderId, cardWithQty.card.dbUuid, newQuantity)
-                cardToEditQuantityUuid = null
+                cardToEditQuantity = null
             },
             onDelete = {
                 viewModel.removeCardFromFolder(folderId, cardWithQty.card.dbUuid)
-                cardToEditQuantityUuid = null
+                cardToEditQuantity = null
             }
         )
     }

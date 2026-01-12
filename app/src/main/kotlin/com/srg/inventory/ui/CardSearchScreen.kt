@@ -48,12 +48,7 @@ fun CardSearchScreen(
     val isLoadingMore by viewModel.isLoadingMore.collectAsState()
 
     var showFilterDialog by rememberSaveable { mutableStateOf(false) }
-    var selectedCardUuid by rememberSaveable { mutableStateOf<String?>(null) }
-
-    // Derive the actual card from UUID
-    val selectedCard = remember(selectedCardUuid, searchResults) {
-        selectedCardUuid?.let { uuid -> searchResults.find { it.dbUuid == uuid } }
-    }
+    var selectedCard by remember { mutableStateOf<Card?>(null) }
 
     val listState = rememberLazyListState()
 
@@ -188,7 +183,7 @@ fun CardSearchScreen(
                         val card = searchResults[index]
                         BrowseCardItem(
                             card = card,
-                            onClick = { selectedCardUuid = card.dbUuid }
+                            onClick = { selectedCard = card }
                         )
                     }
 
@@ -226,8 +221,8 @@ fun CardSearchScreen(
     selectedCard?.let { card ->
         CardDetailsDialog(
             card = card,
-            onDismiss = { selectedCardUuid = null },
-            onCardSelected = { newCard -> selectedCardUuid = newCard.dbUuid },
+            onDismiss = { selectedCard = null },
+            onCardSelected = { newCard -> selectedCard = newCard },
             viewModel = viewModel
         )
     }
