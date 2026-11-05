@@ -16,14 +16,14 @@ if (keystorePropertiesFile.exists()) {
 
 android {
     namespace = "com.srg.inventory"
-    compileSdk = 35
+    compileSdk = 36
 
     defaultConfig {
         applicationId = "com.srg.inventory"
         minSdk = 26
-        targetSdk = 35
-        versionCode = 21
-        versionName = "1.0.18"
+        targetSdk = 36
+        versionCode = 22
+        versionName = "1.0.19"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
 
