@@ -243,6 +243,12 @@ abstract class UserCardDatabase : RoomDatabase() {
                         FOREIGN KEY (related_uuid) REFERENCES cards(db_uuid) ON DELETE CASCADE
                     )
                 """)
+
+                // Create indices for foreign keys
+                database.execSQL("CREATE INDEX IF NOT EXISTS index_card_related_finishes_card_uuid ON card_related_finishes(card_uuid)")
+                database.execSQL("CREATE INDEX IF NOT EXISTS index_card_related_finishes_finish_uuid ON card_related_finishes(finish_uuid)")
+                database.execSQL("CREATE INDEX IF NOT EXISTS index_card_related_cards_card_uuid ON card_related_cards(card_uuid)")
+                database.execSQL("CREATE INDEX IF NOT EXISTS index_card_related_cards_related_uuid ON card_related_cards(related_uuid)")
             }
         }
 
@@ -255,7 +261,10 @@ abstract class UserCardDatabase : RoomDatabase() {
                 )
                 .createFromAsset("cards_initial.db")  // Pre-populate with bundled cards (3922 cards + default folders)
                 .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4)
-                .fallbackToDestructiveMigration()
+                // Don't add fallbackToDestructiveMigration() here. With createFromAsset, Room
+                // would delete and re-copy the database whenever the main file's header version
+                // differs from the current one. That happens during first open and whenever the
+                // real version is still in the WAL, wiping user data or crashing with "no such table".
                 .build()
 
                 INSTANCE = instance
